@@ -1,19 +1,35 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const { isAuthenticated, user, openAuthModal, logout } = useAuth();
+
+  const handleAccountClick = () => {
+    if (isAuthenticated) {
+      setIsAccountDropdownOpen(!isAccountDropdownOpen);
+    } else {
+      openAuthModal('login');
+    }
+  };
+
+  const closeDropdown = () => {
+    setIsAccountDropdownOpen(false);
+  };
 
   return (
-    <header className="bg-white shadow-md py-4 px-4 lg:px-6">
-      <div className="container mx-auto">
+    <header className="bg-white shadow-md py-2 px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/" className="flex items-center">
+            <Link to="/" className="flex items-center">
               <span className="text-2xl font-bold text-sky-600">Fast</span>
               <span className="text-2xl font-bold text-sky-800">Shopping</span>
-            </a>
+            </Link>
           </div>
 
           {/* Search - Hidden on mobile, visible on desktop */}
@@ -23,7 +39,7 @@ const Header: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search for products, brands and more..."
-                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-gray-300 bg-white text-gray-800 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition"
+                  className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 bg-white text-gray-800 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition"
                 />
                 <button className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors duration-200">
                   <i className="fas fa-search"></i>
@@ -43,35 +59,67 @@ const Header: React.FC = () => {
               <i className="fas fa-search text-xl"></i>
             </button>
 
-            {/* User account */}
-            <a
-              href="/account"
-              className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
-              aria-label="Account"
-            >
-              <div className="relative">
-                <i className="fas fa-user text-xl group-hover:scale-110 transition-transform duration-200"></i>
-                <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full hidden"></span>
-              </div>
-              <span className="text-xs hidden sm:inline mt-1">Account</span>
-            </a>
+            {/* User account with login modal and dropdown */}
+            <div className="relative">
+              <button
+                onClick={handleAccountClick}
+                onBlur={() => setTimeout(closeDropdown, 200)} // Small delay to allow clicking links
+                className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
+                aria-label={isAuthenticated ? "My Account" : "Login"}
+              >
+                <div className="relative">
+                  <i className="fas fa-user text-xl group-hover:scale-110 transition-transform duration-200"></i>
+                  {isAuthenticated && (
+                    <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>
+                  )}
+                </div>
+                <span className="text-xs hidden sm:inline mt-1">
+                  {isAuthenticated ? "Account" : "Login"}
+                </span>
+              </button>
+
+              {/* Authenticated user dropdown */}
+              {isAuthenticated && isAccountDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
+                  <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                    <p className="font-medium">Hi, {user?.firstName || user?.username}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                  <Link
+                    to="/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                    onClick={closeDropdown}
+                  >
+                    <i className="fas fa-user-circle mr-2"></i> My Profile
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      closeDropdown();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                  >
+                    <i className="fas fa-sign-out-alt mr-2"></i> Logout
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Wishlist */}
-            <a
-              href="/wishlist"
+            <Link
+              to="/wishlist"
               className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
               aria-label="Wishlist"
             >
               <div className="relative">
                 <i className="fas fa-heart text-xl group-hover:scale-110 transition-transform duration-200"></i>
-                {/* Add counter for wishlist items here if needed */}
               </div>
               <span className="text-xs hidden sm:inline mt-1">Wishlist</span>
-            </a>
+            </Link>
 
             {/* Cart */}
-            <a
-              href="/cart"
+            <Link
+              to="/cart"
               className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200 relative"
               aria-label="Cart"
             >
@@ -84,7 +132,7 @@ const Header: React.FC = () => {
                 )}
               </div>
               <span className="text-xs hidden sm:inline mt-1">Cart</span>
-            </a>
+            </Link>
           </div>
         </div>
 

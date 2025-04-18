@@ -1,5 +1,5 @@
 import React from 'react';
-import ProductCard from '../ui/ProductCard';
+import { Link } from 'react-router-dom';
 
 interface Product {
   id: number;
@@ -17,83 +17,67 @@ interface ProductGridProps {
   products: Product[];
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({ 
-  title = "Smartphone", 
-  highlightedText = "Deals", 
-  products = [
-    {
-      id: 1,
-      name: "Samsung Galaxy S22 Ultra 5G (Phantom Black, 12GB RAM, 256GB)",
-      image: "/api/placeholder/200/200",
-      currentPrice: 999.99,
-      originalPrice: 1199.99,
-      discount: 16,
-      savings: 200.00
-    },
-    {
-      id: 2,
-      name: "Apple iPhone 15 Pro (Deep Blue, 256GB)",
-      image: "/api/placeholder/200/200",
-      currentPrice: 1099.99,
-      originalPrice: 1299.99,
-      discount: 15,
-      savings: 200.00
-    },
-    {
-      id: 3,
-      name: "Google Pixel 7 Pro (Snow, 12GB RAM, 128GB)",
-      image: "/api/placeholder/200/200",
-      currentPrice: 899.99,
-      originalPrice: 999.99,
-      discount: 10,
-      savings: 100.00
-    },
-    {
-      id: 4,
-      name: "OnePlus 11 5G (Eternal Green, 8GB RAM, 128GB)",
-      image: "/api/placeholder/200/200",
-      currentPrice: 799.99,
-      originalPrice: 899.99,
-      discount: 11,
-      savings: 100.00
-    },
-    {
-      id: 5,
-      name: "Xiaomi 14 Ultra (Titanium, 12GB RAM, 256GB)",
-      image: "/api/placeholder/200/200",
-      currentPrice: 899.99,
-      originalPrice: 1099.99,
-      discount: 18,
-      savings: 200.00
-    }
-  ]
-}) => {
+const ProductGrid: React.FC<ProductGridProps> = ({ title, highlightedText, products }) => {
   return (
-    <section className="mb-10">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
+    <div>
+      {/* Section Title */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">
           {title} <span className="text-sky-600">{highlightedText}</span>
         </h2>
-        <a href="#" className="text-sm text-sky-600 hover:text-sky-800 transition-colors duration-200 flex items-center font-medium">
-          View All <i className="fas fa-chevron-right ml-1 text-xs"></i>
-        </a>
+        <Link to="/products" className="text-sky-600 hover:text-sky-700 font-medium flex items-center">
+          View All
+          <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       </div>
-      <div className="border-b-2 border-sky-500 w-40 mb-6"></div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
+      {/* Products Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {products.map((product) => (
-          <ProductCard
-            key={product.id}
-            name={product.name}
-            image={product.image}
-            currentPrice={product.currentPrice}
-            originalPrice={product.originalPrice}
-            discount={product.discount}
-            savings={product.savings}
-          />
+          <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            {/* Product Image */}
+            <div className="relative">
+              <img 
+                src={product.image} 
+                alt={product.name} 
+                className="w-full h-48 object-contain p-4"
+              />
+              <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                {product.discount}% OFF
+              </div>
+            </div>
+            
+            {/* Product Info */}
+            <div className="p-4">
+              <h3 className="text-sm text-gray-800 font-medium line-clamp-2 mb-2">{product.name}</h3>
+              
+              <div className="flex items-center mb-1">
+                <span className="text-lg font-bold text-gray-800">₹{product.currentPrice.toLocaleString()}</span>
+                <span className="text-sm text-gray-500 line-through ml-2">₹{product.originalPrice.toLocaleString()}</span>
+              </div>
+              
+              <p className="text-xs text-green-600 font-medium">
+                You save: ₹{product.savings.toLocaleString()}
+              </p>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="px-4 pb-4 flex space-x-2">
+              <button className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded text-sm font-medium">
+                Add to Cart
+              </button>
+              <button className="p-2 border border-gray-300 hover:border-sky-600 rounded">
+                <svg className="h-5 w-5 text-gray-600 hover:text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 };
 

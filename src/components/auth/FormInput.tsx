@@ -1,87 +1,52 @@
-import React, { InputHTMLAttributes, useState } from 'react';
+import React from 'react';
 
-// Extending the InputHTMLAttributes to reuse all native input props
-interface FormInputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+interface FormInputProps {
   id: string;
-  error?: string;
-  icon?: React.ReactNode;
-  containerClassName?: string;
+  name: string;
+  label: string;
+  type?: string;
+  value: string;
+  placeholder?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  error?: string | null;
+  className?: string;
 }
 
 const FormInput: React.FC<FormInputProps> = ({
-  label,
   id,
-  error,
-  icon,
-  containerClassName = '',
-  className = '',
+  name,
+  label,
   type = 'text',
-  ...props
+  value,
+  placeholder,
+  onChange,
+  required = false,
+  error = null,
+  className = '',
 }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-  const inputType = type === 'password' && isPasswordVisible ? 'text' : type;
-
   return (
-    <div className={`mb-4 ${containerClassName}`}>
+    <div className={`mb-4 ${className}`}>
       <label 
         htmlFor={id} 
-        className="block text-sm font-medium text-gray-700 mb-1"
+        className="block text-gray-700 text-sm font-medium mb-2"
       >
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      
-      <div className={`relative rounded-lg border ${
-        error 
-          ? 'border-red-300 focus-within:ring-red-200 focus-within:border-red-400'
-          : isFocused
-            ? 'border-sky-300 ring-2 ring-sky-100'
-            : 'border-gray-300 hover:border-sky-200'
-      } transition-all duration-200`}>
-        
-        {/* Icon (if provided) */}
-        {icon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-            {icon}
-          </div>
-        )}
-        
-        <input
-          id={id}
-          type={inputType}
-          className={`block w-full py-2.5 ${
-            icon ? 'pl-10' : 'pl-4'
-          } ${
-            type === 'password' ? 'pr-10' : 'pr-4'
-          } rounded-lg bg-white focus:outline-none text-gray-700 ${className}`}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          {...props}
-        />
-        
-        {/* Password visibility toggle */}
-        {type === 'password' && (
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-sky-600"
-            onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-          >
-            {isPasswordVisible ? (
-              <i className="fas fa-eye-slash"></i>
-            ) : (
-              <i className="fas fa-eye"></i>
-            )}
-          </button>
-        )}
-      </div>
-      
-      {/* Error message */}
+      <input
+        id={id}
+        name={name}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={onChange}
+        required={required}
+        className={`w-full px-3 py-2 bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500
+                  ${error ? 'border-red-500' : 'border-gray-300'}`}
+      />
       {error && (
-        <p className="mt-1 text-sm text-red-600">
-          {error}
-        </p>
+        <p className="text-red-500 text-xs mt-1">{error}</p>
       )}
     </div>
   );

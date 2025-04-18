@@ -126,32 +126,40 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <>
-      <HeroBanner 
-        title="SMART WEARABLE."
-        subtitle="Best Deal Online on smart watches"
-        discount="UP to 80% OFF"
-        image="/api/placeholder/300/300"
-      />
+    <div className="container mx-auto px-4">
+      <div className="my-6">
+        <HeroBanner 
+          title="SMART WEARABLE."
+          subtitle="Best Deal Online on smart watches"
+          discount="UP to 80% OFF"
+          image="/api/placeholder/300/300"
+        />
+      </div>
       
-      <ProductGrid 
-        title="Grab the best deal on"
-        highlightedText="Smartphones"
-        products={smartphones}
-      />
+      <div className="my-8">
+        <ProductGrid 
+          title="Grab the best deal on"
+          highlightedText="Smartphones"
+          products={smartphones}
+        />
+      </div>
       
-      <CategoryGrid 
-        title="Shop From"
-        highlightedText="Top Categories"
-        categories={categories}
-      />
+      <div className="my-8">
+        <CategoryGrid 
+          title="Shop From"
+          highlightedText="Top Categories"
+          categories={categories}
+        />
+      </div>
       
-      <BrandCarousel 
-        title="Top"
-        highlightedText="Electronics Brands"
-        brands={brands}
-      />
-    </>
+      <div className="my-8">
+        <BrandCarousel 
+          title="Top"
+          highlightedText="Electronics Brands"
+          brands={brands}
+        />
+      </div>
+    </div>
   );
 };
 

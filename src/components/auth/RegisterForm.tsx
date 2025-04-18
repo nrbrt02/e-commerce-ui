@@ -1,272 +1,329 @@
 import React, { useState } from 'react';
-import FormInput from './FormInput';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { RegisterData } from '../../context/AuthContext';
 
 interface RegisterFormProps {
-  onSubmit: (data: RegisterData) => void;
   onSwitchToLogin: () => void;
 }
 
-export interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword?: string;
-  firstName: string;
-  lastName: string;
-  acceptTerms: boolean;
-}
-
-const RegisterForm: React.FC<RegisterFormProps> = ({
-  onSubmit,
-  onSwitchToLogin
-}) => {
-  const [formData, setFormData] = useState<RegisterData>({
+const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
+  const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    acceptTerms: false
+    phone: '',
+    isStaff: false,
+    role: 'admin'
   });
   
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { register, error, clearError } = useAuth();
+  const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    // Clear password error when typing in password fields
+    if (name === 'password' || name === 'confirmPassword') {
+      setPasswordError(null);
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    // Username validation
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
+  const validateForm = () => {
+    // Check if passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return false;
     }
     
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+    // Check password length
+    if (formData.password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return false;
     }
     
-    // First name validation
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-    
-    // Last name validation
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-    
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must include uppercase, lowercase and number';
-    }
-    
-    // Confirm password validation
-    if (formData.password && formData.confirmPassword !== formData.password) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    // Terms acceptance
-    if (!formData.acceptTerms) {
-      newErrors.acceptTerms = 'You must accept the terms and conditions';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    // Clear previous errors
+    clearError();
+    setPasswordError(null);
     
-    setIsLoading(true);
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
     
     try {
-      // Remove confirmPassword before submitting
-      const { confirmPassword, ...dataToSubmit } = formData;
+      // Prepare registration data
+      const registrationData: RegisterData = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        isStaff: formData.isStaff,
+        role: formData.isStaff ? formData.role : undefined,
+        phone: !formData.isStaff ? formData.phone : undefined
+      };
       
-      // In a real app, you'd make an API call here
-      // For now, we'll just simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onSubmit(dataToSubmit);
-    } catch (error) {
-      console.error('Registration error:', error);
-      setErrors({ form: 'Registration failed. Please try again.' });
+      // Register the user
+      await register(registrationData);
+      
+      // Redirect based on user type
+      if (formData.isStaff) {
+        navigate('/dashboard');
+      }
+      // For regular customers, the modal will close and they'll stay on the current page
+      
+    } catch (err) {
+      console.error('Registration failed:', err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-sm p-6 sm:p-8">
-      <h2 className="text-2xl font-bold text-sky-800 mb-6">Create an Account</h2>
+    <div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Create an account</h2>
       
-      {errors.form && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-          {errors.form}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
+          {error}
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormInput
+      <form onSubmit={handleSubmit}>
+        {/* Username field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="username" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Username
+          </label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Choose a username"
+            required
+          />
+        </div>
+        
+        {/* Email field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="email" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Email Address
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="your@email.com"
+            required
+          />
+        </div>
+        
+        {/* Password field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="password" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 
+                       ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Create a password"
+            required
+          />
+          {passwordError && (
+            <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+          )}
+        </div>
+        
+        {/* Confirm Password field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="confirmPassword" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 
+                       ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Confirm your password"
+            required
+          />
+        </div>
+        
+        {/* First Name field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="firstName" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            First Name
+          </label>
+          <input
+            type="text"
             id="firstName"
             name="firstName"
-            label="First Name"
             value={formData.firstName}
             onChange={handleChange}
-            error={errors.firstName}
-            placeholder="John"
-            required
-            icon={<i className="fas fa-user"></i>}
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Your first name"
           />
-          
-          <FormInput
+        </div>
+        
+        {/* Last Name field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="lastName" 
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Last Name
+          </label>
+          <input
+            type="text"
             id="lastName"
             name="lastName"
-            label="Last Name"
             value={formData.lastName}
             onChange={handleChange}
-            error={errors.lastName}
-            placeholder="Doe"
-            required
-            icon={<i className="fas fa-user"></i>}
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Your last name"
           />
         </div>
         
-        <FormInput
-          id="username"
-          name="username"
-          label="Username"
-          value={formData.username}
-          onChange={handleChange}
-          error={errors.username}
-          placeholder="johndoe"
-          required
-          icon={<i className="fas fa-user-tag"></i>}
-        />
+        {/* Phone field - show only for customers */}
+        {!formData.isStaff && (
+          <div className="mb-4">
+            <label 
+              htmlFor="phone" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                        focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder="Your phone number"
+            />
+          </div>
+        )}
         
-        <FormInput
-          id="email"
-          name="email"
-          label="Email Address"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          error={errors.email}
-          placeholder="your@email.com"
-          required
-          autoComplete="email"
-          icon={<i className="fas fa-envelope"></i>}
-        />
-        
-        <FormInput
-          id="password"
-          name="password"
-          label="Password"
-          type="password"
-          value={formData.password}
-          onChange={handleChange}
-          error={errors.password}
-          placeholder="••••••••"
-          required
-          autoComplete="new-password"
-          icon={<i className="fas fa-lock"></i>}
-        />
-        
-        <FormInput
-          id="confirmPassword"
-          name="confirmPassword"
-          label="Confirm Password"
-          type="password"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          error={errors.confirmPassword}
-          placeholder="••••••••"
-          required
-          autoComplete="new-password"
-          icon={<i className="fas fa-lock"></i>}
-        />
-        
-        <div className="mt-4">
-          <label className="flex items-start">
+        {/* User type selection */}
+        <div className="mb-4">
+          <div className="flex items-center">
             <input
               type="checkbox"
-              name="acceptTerms"
-              checked={formData.acceptTerms}
+              id="isStaff"
+              name="isStaff"
+              checked={formData.isStaff}
               onChange={handleChange}
-              className="h-4 w-4 mt-1 text-sky-600 rounded border-gray-300 focus:ring-sky-500"
+              className="h-4 w-4 text-sky-600 border-gray-300 rounded 
+                         focus:ring-sky-500"
             />
-            <span className="ml-2 text-gray-700 text-sm">
-              I agree to the{' '}
-              <a href="/terms" className="text-sky-600 hover:underline">
-                Terms and Conditions
-              </a>{' '}
-              and{' '}
-              <a href="/privacy" className="text-sky-600 hover:underline">
-                Privacy Policy
-              </a>
-            </span>
-          </label>
-          {errors.acceptTerms && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.acceptTerms}
-            </p>
-          )}
+            <label 
+              htmlFor="isStaff"
+              className="ml-2 block text-sm text-gray-700"
+            >
+              Register as Staff/Admin
+            </label>
+          </div>
         </div>
         
+        {/* Role selection - show only for staff */}
+        {formData.isStaff && (
+          <div className="mb-6">
+            <label 
+              htmlFor="role" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Role
+            </label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                        focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="supplier">Supplier</option>
+            </select>
+          </div>
+        )}
+        
+        {/* Submit button */}
         <button
           type="submit"
-          disabled={isLoading}
-          className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center ${
-            isLoading 
-              ? 'bg-sky-300 cursor-not-allowed' 
-              : 'bg-sky-600 hover:bg-sky-700 text-white'
-          }`}
+          disabled={isSubmitting}
+          className={`w-full py-2 px-4 rounded-md text-white font-medium 
+                     ${isSubmitting ? 'bg-sky-400' : 'bg-sky-600 hover:bg-sky-700'} 
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500`}
         >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Processing...
-            </>
-          ) : (
-            <>Create Account</>
-          )}
+          {isSubmitting ? 'Creating Account...' : 'Create Account'}
         </button>
       </form>
       
+      {/* Login link */}
       <div className="mt-6 text-center">
-        <p className="text-gray-600">
+        <p className="text-sm text-gray-600">
           Already have an account?{' '}
           <button
             type="button"
             onClick={onSwitchToLogin}
-            className="text-sky-600 hover:text-sky-800 hover:underline font-medium"
+            className="text-sky-600 hover:text-sky-800 font-medium"
           >
             Sign In
           </button>
