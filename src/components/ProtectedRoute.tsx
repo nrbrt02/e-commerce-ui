@@ -1,12 +1,17 @@
+// src/components/ProtectedRoute.tsx
 import React, { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
   requireStaff?: boolean;
+  children?: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requireStaff = false }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  requireStaff = true,
+  children 
+}) => {
   const { user, isAuthenticated, isLoading, openAuthModal } = useAuth();
   const location = useLocation();
 
@@ -50,13 +55,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requireStaff = false })
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  // If user doesn't have the required role, redirect to dashboard
+  // If user doesn't have the required role
   if (requireStaff && !hasRequiredRole()) {
+    // Redirect customer to their account page (not dashboard)
+    return <Navigate to="/account" replace />;
+  }
+
+  // If staff user tries to access customer-only routes
+  if (!requireStaff && hasRequiredRole()) {
+    // Redirect staff to dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
   // If all checks pass, render the protected content
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;

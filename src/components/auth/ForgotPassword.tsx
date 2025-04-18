@@ -1,5 +1,6 @@
+// src/components/auth/ForgotPassword.tsx
 import React, { useState } from 'react';
-import axios from 'axios';
+import { authAPI } from '../../utils/apiClient';
 
 interface ForgotPasswordFormProps {
   onSwitchToLogin: () => void;
@@ -12,9 +13,6 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // API base URL from environment variables
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -22,28 +20,21 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin
     setIsSubmitting(true);
     
     try {
-      // Simulate API call for password reset
-      // In a real app, this would make a request to your backend
-      // await axios.post(`${API_BASE_URL}/auth/forgot-password`, {
-      //   email,
-      //   userType: isStaff ? 'admin' : 'customer'
-      // });
+      // Call the forgot password API
+      await authAPI.forgotPassword(email, isStaff);
       
-      // For development, simulate a successful request
-      setTimeout(() => {
-        // Display success message
-        setSuccessMessage(
-          'If your email exists in our system, you will receive a password reset link shortly.'
-        );
-        
-        // Clear email field
-        setEmail('');
-        setIsSubmitting(false);
-      }, 1000);
+      // Display success message
+      setSuccessMessage(
+        'If your email exists in our system, you will receive a password reset link shortly.'
+      );
+      
+      // Clear email field
+      setEmail('');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 
                          'Something went wrong. Please try again.';
       setError(errorMessage);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -86,6 +77,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin
                        focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="your@email.com"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -99,6 +91,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin
               onChange={() => setIsStaff(!isStaff)}
               className="h-4 w-4 text-sky-600 border-gray-300 rounded 
                          focus:ring-sky-500"
+              disabled={isSubmitting}
             />
             <label 
               htmlFor="isStaff"
@@ -128,6 +121,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin
             type="button"
             onClick={onSwitchToLogin}
             className="text-sky-600 hover:text-sky-800 font-medium"
+            disabled={isSubmitting}
           >
             Back to Login
           </button>

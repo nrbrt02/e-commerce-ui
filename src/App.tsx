@@ -13,8 +13,8 @@ import './styles/globals.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
@@ -26,10 +26,17 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="products" element={<Products />} />
               
+              {/* Admin and Manager Routes */}
+              <Route element={<ProtectedRoute requiredRoles={['admin', 'manager']} />}>
+                <Route path="orders" element={<Orders />} />
+              </Route>
+              
               {/* Admin Only Routes */}
-              <Route path="orders" element={<Orders />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="users" element={<div>Users Management</div>} />
+              <Route element={<ProtectedRoute requiredRoles={['admin']} />}>
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="users" element={<div>Users Management</div>} />
+              </Route>
+              
               <Route path="settings" element={<div>Settings</div>} />
             </Route>
           </Route>
@@ -37,8 +44,8 @@ function App() {
           {/* Catch-all route - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

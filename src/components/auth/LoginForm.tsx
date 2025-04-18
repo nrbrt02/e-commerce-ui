@@ -1,3 +1,4 @@
+// src/components/auth/LoginForm.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -25,14 +26,21 @@ const LoginForm: React.FC<LoginFormProps> = ({
     clearError();
     
     try {
+      console.log('Attempting login with:', { email, password, isStaff });
       await login(email, password, isStaff);
       
-      // Navigation will be handled automatically by AuthContext
-      // The modal will close and the user will stay on their current page
-      // If they are staff/admin, they will be redirected to dashboard
-      if (isStaff) {
-        navigate('/dashboard');
-      }
+      // Clear form
+      setEmail('');
+      setPassword('');
+      
+      // Add a small delay to ensure state changes have propagated
+      setTimeout(() => {
+        // Navigation will be handled automatically by AuthContext
+        // If they are staff/admin, they will be redirected to dashboard
+        if (isStaff) {
+          navigate('/dashboard');
+        }
+      }, 100);
     } catch (err) {
       // Error handling is done by AuthContext
       console.error('Login failed:', err);
@@ -69,6 +77,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                      focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="your@email.com"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -85,6 +94,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
               type="button"
               onClick={onSwitchToForgotPassword}
               className="text-xs text-sky-600 hover:text-sky-800"
+              disabled={isSubmitting}
             >
               Forgot password?
             </button>
@@ -98,6 +108,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                      focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="••••••••"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -111,6 +122,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
               onChange={() => setIsStaff(!isStaff)}
               className="h-4 w-4 text-sky-600 border-gray-300 rounded 
                        focus:ring-sky-500"
+              disabled={isSubmitting}
             />
             <label 
               htmlFor="isStaff"
@@ -141,6 +153,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="button"
             onClick={onSwitchToRegister}
             className="text-sky-600 hover:text-sky-800 font-medium"
+            disabled={isSubmitting}
           >
             Sign Up
           </button>

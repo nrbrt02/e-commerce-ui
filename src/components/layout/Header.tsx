@@ -1,5 +1,6 @@
+// src/components/layout/Header.tsx
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Header: React.FC = () => {
@@ -7,6 +8,7 @@ const Header: React.FC = () => {
   const [cartItemCount, setCartItemCount] = useState(0);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const { isAuthenticated, user, openAuthModal, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleAccountClick = () => {
     if (isAuthenticated) {
@@ -18,6 +20,25 @@ const Header: React.FC = () => {
 
   const closeDropdown = () => {
     setIsAccountDropdownOpen(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    closeDropdown();
+    navigate('/');
+  };
+
+  const navigateToAccount = () => {
+    if (isAuthenticated) {
+      if (user?.isStaff) {
+        navigate('/dashboard');
+      } else {
+        navigate('/account');
+      }
+    } else {
+      navigate('/account');
+    }
+    closeDropdown();
   };
 
   return (
@@ -85,18 +106,39 @@ const Header: React.FC = () => {
                     <p className="font-medium">Hi, {user?.firstName || user?.username}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
-                    onClick={closeDropdown}
-                  >
-                    <i className="fas fa-user-circle mr-2"></i> My Profile
-                  </Link>
+                  
                   <button
-                    onClick={() => {
-                      logout();
-                      closeDropdown();
-                    }}
+                    onClick={navigateToAccount}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                  >
+                    <i className="fas fa-user-circle mr-2"></i> 
+                    {user?.isStaff ? 'Dashboard' : 'My Account'}
+                  </button>
+                  
+                  {!user?.isStaff && (
+                    <>
+                      <Link
+                        to="/account?tab=orders"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                        onClick={closeDropdown}
+                      >
+                        <i className="fas fa-shopping-bag mr-2"></i> My Orders
+                      </Link>
+                      
+                      <Link
+                        to="/account?tab=wishlist"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                        onClick={closeDropdown}
+                      >
+                        <i className="fas fa-heart mr-2"></i> Wishlist
+                      </Link>
+                    </>
+                  )}
+                  
+                  <div className="border-t border-gray-100 my-1"></div>
+                  
+                  <button
+                    onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                   >
                     <i className="fas fa-sign-out-alt mr-2"></i> Logout

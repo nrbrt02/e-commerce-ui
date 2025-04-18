@@ -1,7 +1,7 @@
+// src/components/auth/RegisterForm.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { RegisterData } from '../../context/AuthContext';
+import { useAuth, RegisterData } from '../../context/AuthContext';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -16,8 +16,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     firstName: '',
     lastName: '',
     phone: '',
-    isStaff: false,
-    role: 'admin'
+    isStaff: false
   });
   
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -79,12 +78,23 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
         isStaff: formData.isStaff,
-        role: formData.isStaff ? formData.role : undefined,
         phone: !formData.isStaff ? formData.phone : undefined
       };
       
       // Register the user
       await register(registrationData);
+      
+      // Reset form
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        isStaff: false
+      });
       
       // Redirect based on user type
       if (formData.isStaff) {
@@ -128,6 +138,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
                        focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="Choose a username"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -149,6 +160,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
                        focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="your@email.com"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -170,6 +182,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
                        ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
             placeholder="Create a password"
             required
+            disabled={isSubmitting}
           />
           {passwordError && (
             <p className="mt-1 text-sm text-red-600">{passwordError}</p>
@@ -194,6 +207,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
                        ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
             placeholder="Confirm your password"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -214,6 +228,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
                        focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="Your first name"
+            disabled={isSubmitting}
           />
         </div>
         
@@ -234,6 +249,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
                        focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder="Your last name"
+            disabled={isSubmitting}
           />
         </div>
         
@@ -255,6 +271,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
                         focus:outline-none focus:ring-2 focus:ring-sky-500"
               placeholder="Your phone number"
+              disabled={isSubmitting}
             />
           </div>
         )}
@@ -270,39 +287,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
               onChange={handleChange}
               className="h-4 w-4 text-sky-600 border-gray-300 rounded 
                          focus:ring-sky-500"
+              disabled={isSubmitting}
             />
             <label 
               htmlFor="isStaff"
               className="ml-2 block text-sm text-gray-700"
             >
-              Register as Staff/Admin
+              Register as Supplier
             </label>
           </div>
         </div>
-        
-        {/* Role selection - show only for staff */}
-        {formData.isStaff && (
-          <div className="mb-6">
-            <label 
-              htmlFor="role" 
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Role
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                        focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="supplier">Supplier</option>
-            </select>
-          </div>
-        )}
         
         {/* Submit button */}
         <button
@@ -324,6 +318,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             type="button"
             onClick={onSwitchToLogin}
             className="text-sky-600 hover:text-sky-800 font-medium"
+            disabled={isSubmitting}
           >
             Sign In
           </button>

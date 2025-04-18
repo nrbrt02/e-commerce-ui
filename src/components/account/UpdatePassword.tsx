@@ -1,3 +1,4 @@
+// src/components/account/UpdatePassword.tsx
 import React, { useState } from 'react';
 import { authAPI } from '../../utils/apiClient';
 
@@ -100,6 +101,7 @@ const UpdatePassword: React.FC = () => {
                          focus:outline-none focus:ring-2 focus:ring-sky-500"
               placeholder="Enter your current password"
               required
+              disabled={isSubmitting}
             />
           </div>
           
@@ -123,6 +125,7 @@ const UpdatePassword: React.FC = () => {
                          ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="Enter your new password"
               required
+              disabled={isSubmitting}
             />
           </div>
           
@@ -146,6 +149,7 @@ const UpdatePassword: React.FC = () => {
                          ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="Confirm your new password"
               required
+              disabled={isSubmitting}
             />
             {passwordError && (
               <p className="mt-1 text-sm text-red-600">{passwordError}</p>

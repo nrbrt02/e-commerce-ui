@@ -1,20 +1,44 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+// src/utils/apiClient.ts
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// API base URL
+// Get environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000');
+const AUTH_TOKEN_KEY = import.meta.env.VITE_AUTH_TOKEN_KEY || 'fast_shopping_token';
 
-// Create an axios instance
-const apiClient = axios.create({
+// Define response types
+interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    isStaff?: boolean;
+    role?: string;
+    roles?: string[];
+    [key: string]: any;
+  };
+}
+
+interface MessageResponse {
+  message: string;
+}
+
+// Create axios instance
+const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor for adding the auth token
-apiClient.interceptors.request.use(
+// Request interceptor for API calls
+axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,192 +49,257 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for handling token expiration
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    
-    // If the error is 401 Unauthorized, and we haven't already tried to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Mark the request as retried
-      originalRequest._retry = true;
+// Response interceptor for API calls
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // Handle 401 - Unauthorized (token expired or invalid)
+    if (error.response && error.response.status === 401) {
+      // Clear local storage
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(import.meta.env.VITE_AUTH_USER_KEY || 'fast_shopping_user');
       
-      // Clear token and redirect to login if we get a 401
-      localStorage.removeItem('token');
-      delete apiClient.defaults.headers.common['Authorization'];
-      
-      // Redirect to login (if not in tests)
-      if (typeof window !== 'undefined') {
-        window.location.href = '/account/login';
+      // Redirect to login page if not already there
+      if (!window.location.pathname.includes('/account')) {
+        window.location.href = '/account';
       }
-      
-      return Promise.reject(error);
     }
-    
-    // For other errors, just reject the promise
     return Promise.reject(error);
   }
 );
 
-// Authentication API
+// Generic API service with typed requests and responses
+class ApiService {
+  // Generic GET request
+  static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response: AxiosResponse<T> = await axiosInstance.get(url, config);
+    return response.data;
+  }
+
+  // Generic POST request
+  static async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response: AxiosResponse<T> = await axiosInstance.post(url, data, config);
+    return response.data;
+  }
+
+  // Generic PUT request
+  static async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response: AxiosResponse<T> = await axiosInstance.put(url, data, config);
+    return response.data;
+  }
+
+  // Generic PATCH request
+  static async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response: AxiosResponse<T> = await axiosInstance.patch(url, data, config);
+    return response.data;
+  }
+
+  // Generic DELETE request
+  static async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response: AxiosResponse<T> = await axiosInstance.delete(url, config);
+    return response.data;
+  }
+}
+
+// Auth service for authentication related APIs
 export const authAPI = {
-  // Login user
-  login: async (email: string, password: string, userType: string = 'customer'): Promise<AxiosResponse> => {
-    return apiClient.post('/auth/login', { email, password, userType });
+  login: async (email: string, password: string, isStaff: boolean = false): Promise<AuthResponse> => {
+    // Using a single endpoint since your backend seems to distinguish using the same endpoint
+    const endpoint = '/auth/login';
+    try {
+      // Send the request with isStaff flag if needed
+      const response = await ApiService.post<any>(endpoint, { 
+        email, 
+        password,
+        userType: isStaff ? 'admin' : 'customer' // Add this if your backend expects it
+      });
+      
+      // Log the response for debugging
+      console.log('Login API response:', response);
+      
+      // Handle response format based on your backend
+      // If your backend returns { status, token, data: { user } }
+      if (response.status === 'success' && response.token && response.data?.user) {
+        return {
+          token: response.token,
+          user: response.data.user
+        };
+      } 
+      
+      // If your backend returns { token, user }
+      if (response.token && response.user) {
+        return response;
+      }
+      
+      throw new Error('Invalid response format from server');
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   },
   
-  // Register user (staff)
-  registerUser: async (userData: any): Promise<AxiosResponse> => {
-    return apiClient.post('/auth/register', userData);
+  register: async (data: any): Promise<AuthResponse> => {
+    // Determine which endpoint to use based on isStaff flag
+    const endpoint = data.isStaff ? '/auth/register' : '/auth/customer/register';
+    
+    // Prepare registration data
+    let registrationData;
+    
+    if (data.isStaff) {
+      // For supplier registration, include roleName
+      registrationData = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        roleName: "supplier" // Set roleName to supplier for staff users
+      };
+    } else {
+      // For customer registration, exclude roleName
+      registrationData = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone
+      };
+    }
+    
+    // Send the registration request
+    return ApiService.post<AuthResponse>(endpoint, registrationData);
   },
   
-  // Register customer
-  registerCustomer: async (userData: any): Promise<AxiosResponse> => {
-    return apiClient.post('/auth/customer/register', userData);
+  forgotPassword: async (email: string, isStaff: boolean = false): Promise<MessageResponse> => {
+    const endpoint = isStaff ? '/auth/staff/forgot-password' : '/auth/forgot-password';
+    return ApiService.post<MessageResponse>(endpoint, { email });
   },
   
-  // Get current user
-  getCurrentUser: async (): Promise<AxiosResponse> => {
-    return apiClient.get('/auth/me');
+  resetPassword: async (token: string, password: string): Promise<MessageResponse> => {
+    return ApiService.post<MessageResponse>('/auth/reset-password', { token, password });
   },
   
-  // Forgot password
-  forgotPassword: async (email: string, userType: string = 'customer'): Promise<AxiosResponse> => {
-    return apiClient.post('/auth/forgot-password', { email, userType });
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<MessageResponse> => {
+    return ApiService.post<MessageResponse>('/auth/update-password', { 
+      currentPassword, 
+      newPassword 
+    });
   },
   
-  // Reset password
-  resetPassword: async (token: string, newPassword: string, userType: string = 'customer'): Promise<AxiosResponse> => {
-    return apiClient.post('/auth/reset-password', { token, newPassword, userType });
+  verifyEmail: async (token: string): Promise<MessageResponse> => {
+    return ApiService.post<MessageResponse>('/auth/verify-email', { token });
   },
   
-  // Update password (when logged in)
-  updatePassword: async (currentPassword: string, newPassword: string): Promise<AxiosResponse> => {
-    return apiClient.patch('/auth/update-password', { currentPassword, newPassword });
+  refreshToken: async (): Promise<{ token: string }> => {
+    return ApiService.post<{ token: string }>('/auth/refresh-token');
   },
 };
 
-// Customer API
+// Customer service for customer profile related APIs
 export const customerAPI = {
-  // Get customer profile
-  getProfile: async (): Promise<AxiosResponse> => {
-    return apiClient.get('/customers/profile');
+  getProfile: async () => {
+    return ApiService.get<any>('/customers/profile');
   },
   
-  // Update customer profile
-  updateProfile: async (profileData: any): Promise<AxiosResponse> => {
-    return apiClient.put('/customers/profile', profileData);
+  updateProfile: async (data: any) => {
+    return ApiService.put<any>('/customers/profile', data);
   },
   
-  // Update customer password
-  updatePassword: async (currentPassword: string, newPassword: string): Promise<AxiosResponse> => {
-    return apiClient.put('/customers/profile/password', { currentPassword, newPassword });
+  getOrders: async (page: number = 1, limit: number = 10) => {
+    return ApiService.get<any>(`/customers/orders?page=${page}&limit=${limit}`);
+  },
+  
+  getOrderDetails: async (orderId: string) => {
+    return ApiService.get<any>(`/customers/orders/${orderId}`);
   },
 };
 
-// Admin API
+// Admin service for admin-specific APIs
 export const adminAPI = {
-  // Get dashboard stats
-  getDashboardStats: async (): Promise<AxiosResponse> => {
-    return apiClient.get('/dashboard/stats');
+  getDashboardStats: async () => {
+    return ApiService.get<any>('/admin/dashboard/stats');
   },
   
-  // Get all users
-  getUsers: async (params?: any): Promise<AxiosResponse> => {
-    return apiClient.get('/users', { params });
+  getUsers: async (page: number = 1, limit: number = 10) => {
+    return ApiService.get<any>(`/admin/users?page=${page}&limit=${limit}`);
   },
   
-  // Get user by ID
-  getUserById: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.get(`/users/${id}`);
+  getUserDetails: async (userId: string) => {
+    return ApiService.get<any>(`/admin/users/${userId}`);
   },
   
-  // Create user
-  createUser: async (userData: any): Promise<AxiosResponse> => {
-    return apiClient.post('/users', userData);
+  updateUser: async (userId: string, data: any) => {
+    return ApiService.put<any>(`/admin/users/${userId}`, data);
   },
   
-  // Update user
-  updateUser: async (id: number, userData: any): Promise<AxiosResponse> => {
-    return apiClient.put(`/users/${id}`, userData);
-  },
-  
-  // Delete user
-  deleteUser: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.delete(`/users/${id}`);
-  },
-  
-  // Get all customers
-  getCustomers: async (params?: any): Promise<AxiosResponse> => {
-    return apiClient.get('/customers', { params });
-  },
-  
-  // Get customer by ID
-  getCustomerById: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.get(`/customers/${id}`);
-  },
-  
-  // Update customer
-  updateCustomer: async (id: number, customerData: any): Promise<AxiosResponse> => {
-    return apiClient.put(`/customers/${id}`, customerData);
-  },
-  
-  // Delete customer
-  deleteCustomer: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.delete(`/customers/${id}`);
+  deleteUser: async (userId: string) => {
+    return ApiService.delete<any>(`/admin/users/${userId}`);
   },
 };
 
-// Products API
+// Product service for product-related APIs
 export const productAPI = {
-  // Get all products
-  getProducts: async (params?: any): Promise<AxiosResponse> => {
-    return apiClient.get('/products', { params });
+  getProducts: async (page: number = 1, limit: number = 10, filters?: any) => {
+    let url = `/products?page=${page}&limit=${limit}`;
+    if (filters) {
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+      if (queryParams.toString()) {
+        url += `&${queryParams.toString()}`;
+      }
+    }
+    return ApiService.get<any>(url);
   },
   
-  // Get product by ID
-  getProductById: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.get(`/products/${id}`);
+  getProductDetails: async (productId: string) => {
+    return ApiService.get<any>(`/products/${productId}`);
   },
   
-  // Create product
-  createProduct: async (productData: any): Promise<AxiosResponse> => {
-    return apiClient.post('/products', productData);
+  createProduct: async (data: any) => {
+    return ApiService.post<any>('/admin/products', data);
   },
   
-  // Update product
-  updateProduct: async (id: number, productData: any): Promise<AxiosResponse> => {
-    return apiClient.put(`/products/${id}`, productData);
+  updateProduct: async (productId: string, data: any) => {
+    return ApiService.put<any>(`/admin/products/${productId}`, data);
   },
   
-  // Delete product
-  deleteProduct: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.delete(`/products/${id}`);
+  deleteProduct: async (productId: string) => {
+    return ApiService.delete<any>(`/admin/products/${productId}`);
   },
 };
 
-// Orders API
+// Order service for order-related APIs
 export const orderAPI = {
-  // Get all orders
-  getOrders: async (params?: any): Promise<AxiosResponse> => {
-    return apiClient.get('/orders', { params });
+  getOrders: async (page: number = 1, limit: number = 10, filters?: any) => {
+    let url = `/admin/orders?page=${page}&limit=${limit}`;
+    if (filters) {
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+      if (queryParams.toString()) {
+        url += `&${queryParams.toString()}`;
+      }
+    }
+    return ApiService.get<any>(url);
   },
   
-  // Get order by ID
-  getOrderById: async (id: number): Promise<AxiosResponse> => {
-    return apiClient.get(`/orders/${id}`);
+  getOrderDetails: async (orderId: string) => {
+    return ApiService.get<any>(`/admin/orders/${orderId}`);
   },
   
-  // Update order status
-  updateOrderStatus: async (id: number, status: string): Promise<AxiosResponse> => {
-    return apiClient.patch(`/orders/${id}/status`, { status });
-  },
-  
-  // Get customer orders (for customer profile)
-  getCustomerOrders: async (): Promise<AxiosResponse> => {
-    return apiClient.get('/customers/profile/orders');
+  updateOrderStatus: async (orderId: string, status: string) => {
+    return ApiService.patch<any>(`/admin/orders/${orderId}/status`, { status });
   },
 };
 
-export default apiClient;
+export default ApiService;

@@ -54,12 +54,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ title, highlightedText, produ
               <h3 className="text-sm text-gray-800 font-medium line-clamp-2 mb-2">{product.name}</h3>
               
               <div className="flex items-center mb-1">
-                <span className="text-lg font-bold text-gray-800">₹{product.currentPrice.toLocaleString()}</span>
-                <span className="text-sm text-gray-500 line-through ml-2">₹{product.originalPrice.toLocaleString()}</span>
+                <span className="text-lg font-bold text-gray-800">Rwf{product.currentPrice.toLocaleString()}</span>
+                <span className="text-sm text-gray-500 line-through ml-2">Rwf{product.originalPrice.toLocaleString()}</span>
               </div>
               
               <p className="text-xs text-green-600 font-medium">
-                You save: ₹{product.savings.toLocaleString()}
+                You save: Rwf{product.savings.toLocaleString()}
               </p>
             </div>
             

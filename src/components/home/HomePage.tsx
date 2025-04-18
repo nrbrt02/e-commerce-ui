@@ -128,12 +128,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="container mx-auto px-4">
       <div className="my-6">
-        <HeroBanner 
-          title="SMART WEARABLE."
-          subtitle="Best Deal Online on smart watches"
-          discount="UP to 80% OFF"
-          image="/api/placeholder/300/300"
-        />
+        <HeroBanner />
       </div>
       
       <div className="my-8">
