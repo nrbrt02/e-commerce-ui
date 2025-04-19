@@ -1,58 +1,19 @@
-import React from 'react';
+// src/components/home/HomePage.tsx
+import React, { useMemo } from 'react';
 import HeroBanner from './HeroBanner';
 import ProductGrid from './ProductGrid';
 import CategoryGrid from './CategoryGrid';
 import BrandCarousel from './BrandCarousel';
+import useProducts from '../../hooks/useProducts';
 
 const HomePage: React.FC = () => {
-  // Sample data for smartphones
-  const smartphones = [
-    {
-      id: 1,
-      name: "Galaxy S22 Ultra",
-      image: "/api/placeholder/150/200",
-      currentPrice: 32999,
-      originalPrice: 74999,
-      discount: 55,
-      savings: 22000
-    },
-    {
-      id: 2,
-      name: "Galaxy M13 (4GB | 64 GB)",
-      image: "/api/placeholder/150/200",
-      currentPrice: 10499,
-      originalPrice: 14999,
-      discount: 55,
-      savings: 4500
-    },
-    {
-      id: 3,
-      name: "Galaxy M33 (4GB | 64 GB)",
-      image: "/api/placeholder/150/200",
-      currentPrice: 16999,
-      originalPrice: 24999,
-      discount: 55,
-      savings: 8000
-    },
-    {
-      id: 4,
-      name: "Galaxy M53 (4GB | 64 GB)",
-      image: "/api/placeholder/150/200",
-      currentPrice: 31999,
-      originalPrice: 40999,
-      discount: 55,
-      savings: 9000
-    },
-    {
-      id: 5,
-      name: "Galaxy S22 Ultra",
-      image: "/api/placeholder/150/200",
-      currentPrice: 67999,
-      originalPrice: 86999,
-      discount: 55,
-      savings: 18000
-    }
-  ];
+  // Use our simplified hook to fetch all products
+  const { products, isLoading, error } = useProducts();
+  
+  // Use memo to derive featured products from all products
+  const featuredProducts = useMemo(() => {
+    return products.filter(product => product.isFeatured);
+  }, [products]);
 
   // Sample data for categories
   const categories = [
@@ -132,12 +93,31 @@ const HomePage: React.FC = () => {
       </div>
       
       <div className="my-8">
-        <ProductGrid 
-          title="Grab the best deal on"
-          highlightedText="Smartphones"
-          products={smartphones}
-        />
+        {error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8">
+            <p className="font-medium">Error loading products:</p>
+            <p>{error}</p>
+          </div>
+        ) : (
+          <ProductGrid 
+            title="All"
+            highlightedText="Products"
+            products={products}
+            isLoading={isLoading}
+          />
+        )}
       </div>
+      
+      {featuredProducts.length > 0 && (
+        <div className="my-8">
+          <ProductGrid 
+            title="Featured"
+            highlightedText="Products"
+            products={featuredProducts}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
       
       <div className="my-8">
         <CategoryGrid 

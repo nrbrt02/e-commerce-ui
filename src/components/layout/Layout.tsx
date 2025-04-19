@@ -1,35 +1,24 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 import TopBar from './TopBar';
 import Header from './Header';
 import Navigation from './Navigation';
 import Footer from './Footer';
-import AuthModal from '../auth/AuthModal';
-import { useAuth } from '../../context/AuthContext';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children?: ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { isAuthModalOpen, closeAuthModal } = useAuth();
-
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col">
       <TopBar />
       <Header />
       <Navigation />
-      
       <main className="flex-grow">
-        {children}
+        {children || <Outlet />}
       </main>
-      
       <Footer />
-      
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={closeAuthModal} 
-      />
     </div>
   );
 };

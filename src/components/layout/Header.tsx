@@ -2,19 +2,30 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
+import CartDropdown from "../cart/CartDropdown";
 
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [cartItemCount, setCartItemCount] = useState(0);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const { isAuthenticated, user, openAuthModal, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
+  const { 
+    itemCount, 
+    isCartDropdownOpen, 
+    toggleCartDropdown, 
+    closeCartDropdown,
+    cartItems,
+    updateQuantity,
+    removeItem 
+  } = useCart();
   const navigate = useNavigate();
 
   const handleAccountClick = () => {
     if (isAuthenticated) {
       setIsAccountDropdownOpen(!isAccountDropdownOpen);
     } else {
-      openAuthModal('login');
+      // Navigate to account page instead of opening modal
+      navigate('/account');
     }
   };
 
@@ -80,11 +91,11 @@ const Header: React.FC = () => {
               <i className="fas fa-search text-xl"></i>
             </button>
 
-            {/* User account with login modal and dropdown */}
+            {/* User account with login/account page link and dropdown */}
             <div className="relative">
               <button
                 onClick={handleAccountClick}
-                onBlur={() => setTimeout(closeDropdown, 200)} // Small delay to allow clicking links
+                onBlur={() => setTimeout(closeDropdown, 200)}
                 className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
                 aria-label={isAuthenticated ? "My Account" : "Login"}
               >
@@ -160,21 +171,32 @@ const Header: React.FC = () => {
             </Link>
 
             {/* Cart */}
-            <Link
-              to="/cart"
-              className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200 relative"
-              aria-label="Cart"
-            >
-              <div className="relative">
-                <i className="fas fa-shopping-cart text-xl group-hover:scale-110 transition-transform duration-200"></i>
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-sky-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full animate-pulse">
-                    {cartItemCount}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs hidden sm:inline mt-1">Cart</span>
-            </Link>
+            <div className="relative">
+              <button
+                onClick={toggleCartDropdown}
+                className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200 relative"
+                aria-label="Cart"
+              >
+                <div className="relative">
+                  <i className="fas fa-shopping-cart text-xl group-hover:scale-110 transition-transform duration-200"></i>
+                  {itemCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-sky-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full animate-pulse">
+                      {itemCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs hidden sm:inline mt-1">Cart</span>
+              </button>
+              
+              {/* Cart Dropdown */}
+              <CartDropdown 
+                isOpen={isCartDropdownOpen}
+                onClose={closeCartDropdown}
+                cartItems={cartItems}
+                updateQuantity={updateQuantity}
+                removeItem={removeItem}
+              />
+            </div>
           </div>
         </div>
 
