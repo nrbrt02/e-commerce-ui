@@ -22,6 +22,7 @@ import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import CheckoutSuccess from './pages/CheckoutSuccess';
+import AllProducts from './pages/AllProducts'; // Add the new AllProducts page
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
                 <Route path="checkout" element={<Checkout />} />
                 <Route path="checkout/success" element={<CheckoutSuccess />} />
                 <Route path="product/:id" element={<ProductDetail />} />
+                <Route path="products" element={<AllProducts />} /> {/* Add the AllProducts route */}
                 <Route path="*" element={<NotFound />} />
               </Route>
 

@@ -1,6 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useEffect } from "react";
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -9,17 +9,79 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const { user } = useAuth();
 
-  // Check user roles to determine accessible menu items
-  const hasRole = (roleName: string) => {
-    return user?.role === roleName || (user?.roles && user.roles.includes(roleName));
-  };
+  // Add this debug logging
+  useEffect(() => {
+    console.log("Sidebar - Current user object:", user);
+  }, [user]);
 
-  const isAdmin = hasRole('admin');
-  const isManager = hasRole('manager') || isAdmin;
-  const isSupplier = hasRole('supplier');
+  // Improved hasRole function
+  // const hasRole = (roleName: string) => {
+  //   // Debug log
+  //   console.log(`Sidebar - Checking for role '${roleName}'`);
+
+  //   // Check primaryRole first (our new property)
+  //   if (user?.primaryRole === roleName) {
+  //     console.log(`Sidebar - User has primary role '${roleName}'`);
+  //     return true;
+  //   }
+
+  //   // Check legacy role property
+  //   if (user?.role === roleName) {
+  //     console.log(`Sidebar - User has role property '${roleName}'`);
+  //     return true;
+  //   }
+
+  //   // Check roles array if it exists
+  //   if (user?.roles) {
+  //     // For array of strings
+  //     if (Array.isArray(user.roles) && typeof user.roles[0] === "string") {
+  //       const hasRoleInArray = user.roles.includes(roleName);
+  //       if (hasRoleInArray) {
+  //         console.log(
+  //           `Sidebar - User has '${roleName}' in roles array (string format)`
+  //         );
+  //       }
+  //       return hasRoleInArray;
+  //     }
+
+  //     // For array of objects with name property (from your backend)
+  //     if (Array.isArray(user.roles) && typeof user.roles[0] === "object") {
+  //       const hasRoleObject = user.roles.some((role) => role.name === roleName);
+  //       if (hasRoleObject) {
+  //         console.log(
+  //           `Sidebar - User has '${roleName}' in roles array (object format)`
+  //         );
+  //       }
+  //       return hasRoleObject;
+  //     }
+  //   }
+
+  //   console.log(`Sidebar - User does NOT have role '${roleName}'`);
+  //   return false;
+  // };
+
+  const isAdmin =
+    user?.primaryRole === "admin" || user?.primaryRole === "superadmin";
+  const isManager = user?.primaryRole === "manager";
+  const isSupplier = user?.primaryRole === "supplier";
+
+  // Or check if user is staff (any non-customer role)
+  const isStaff = user?.isStaff;
+  // Debug log the determined roles
+  useEffect(() => {
+    console.log("Sidebar - Role determination:", {
+      isAdmin,
+      isManager,
+      isSupplier,
+    });
+  }, [isAdmin, isManager, isSupplier]);
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0 transition-transform duration-300 ease-in-out`}
+    >
       {/* Sidebar header */}
       <div className="h-16 flex items-center justify-center border-b">
         <h2 className="text-xl font-bold text-sky-700">Fast Shopping</h2>
@@ -30,11 +92,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         <ul className="space-y-1">
           {/* Dashboard */}
           <li>
-            <NavLink 
-              to="/dashboard" 
+            <NavLink
+              to="/dashboard"
               end
-              className={({ isActive }) => 
-                `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 text-gray-700 ${
+                  isActive
+                    ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                    : "hover:bg-gray-100"
+                }`
               }
             >
               <svg
@@ -82,35 +148,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
 
           {/* Products - Visible to all staff types */}
           <li>
-            <NavLink 
-              to="/dashboard/categories" 
-              className={({ isActive }) => 
-                `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
-              }
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-              Categoryies
-            </NavLink>
-          </li>
-
-          <li>
-            <NavLink 
-              to="/dashboard/products" 
-              className={({ isActive }) => 
-                `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+            <NavLink
+              to="/dashboard/products"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 text-gray-700 ${
+                  isActive
+                    ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                    : "hover:bg-gray-100"
+                }`
               }
             >
               <svg
@@ -132,12 +177,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           </li>
 
           {/* Categories - Visible to admin and manager */}
-          {(isAdmin || isManager) && (
+          {(isStaff) && (
             <li>
-              <NavLink 
-                to="/dashboard/categories" 
-                className={({ isActive }) => 
-                  `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+              <NavLink
+                to="/dashboard/categories"
+                className={({ isActive }) =>
+                  `flex items-center px-4 py-3 text-gray-700 ${
+                    isActive
+                      ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                      : "hover:bg-gray-100"
+                  }`
                 }
               >
                 <svg
@@ -169,10 +218,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           {/* Orders - Visible to admin and manager */}
           {(isAdmin || isManager) && (
             <li>
-              <NavLink 
-                to="/dashboard/orders" 
-                className={({ isActive }) => 
-                  `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+              <NavLink
+                to="/dashboard/orders"
+                className={({ isActive }) =>
+                  `flex items-center px-4 py-3 text-gray-700 ${
+                    isActive
+                      ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                      : "hover:bg-gray-100"
+                  }`
                 }
               >
                 <svg
@@ -197,10 +250,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           {/* Customers - Visible to admin and manager */}
           {(isAdmin || isManager) && (
             <li>
-              <NavLink 
-                to="/dashboard/customers" 
-                className={({ isActive }) => 
-                  `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+              <NavLink
+                to="/dashboard/customers"
+                className={({ isActive }) =>
+                  `flex items-center px-4 py-3 text-gray-700 ${
+                    isActive
+                      ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                      : "hover:bg-gray-100"
+                  }`
                 }
               >
                 <svg
@@ -231,10 +288,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 </h3>
               </li>
               <li>
-                <NavLink 
-                  to="/dashboard/analytics" 
-                  className={({ isActive }) => 
-                    `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+                <NavLink
+                  to="/dashboard/analytics"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-gray-700 ${
+                      isActive
+                        ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                        : "hover:bg-gray-100"
+                    }`
                   }
                 >
                   <svg
@@ -266,10 +327,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 </h3>
               </li>
               <li>
-                <NavLink 
-                  to="/dashboard/users" 
-                  className={({ isActive }) => 
-                    `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+                <NavLink
+                  to="/dashboard/users"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-gray-700 ${
+                      isActive
+                        ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                        : "hover:bg-gray-100"
+                    }`
                   }
                 >
                   <svg
@@ -290,10 +355,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 </NavLink>
               </li>
               <li>
-                <NavLink 
-                  to="/dashboard/settings" 
-                  className={({ isActive }) => 
-                    `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+                <NavLink
+                  to="/dashboard/settings"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-gray-700 ${
+                      isActive
+                        ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                        : "hover:bg-gray-100"
+                    }`
                   }
                 >
                   <svg
@@ -329,10 +398,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             </h3>
           </li>
           <li>
-            <NavLink 
-              to="/dashboard/profile" 
-              className={({ isActive }) => 
-                `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+            <NavLink
+              to="/dashboard/profile"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 text-gray-700 ${
+                  isActive
+                    ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                    : "hover:bg-gray-100"
+                }`
               }
             >
               <svg
@@ -353,10 +426,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             </NavLink>
           </li>
           <li>
-            <NavLink 
-              to="/dashboard/logout" 
-              className={({ isActive }) => 
-                `flex items-center px-4 py-3 text-gray-700 ${isActive ? 'bg-sky-50 text-sky-700 border-r-4 border-sky-700' : 'hover:bg-gray-100'}`
+            <NavLink
+              to="/dashboard/logout"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 text-gray-700 ${
+                  isActive
+                    ? "bg-sky-50 text-sky-700 border-r-4 border-sky-700"
+                    : "hover:bg-gray-100"
+                }`
               }
             >
               <svg

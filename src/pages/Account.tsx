@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthPage from '../components/auth/AuthPage';
-import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { customerAPI } from '../utils/apiClient';
 import CustomerProfile from '../components/account/CustomerProfile';
@@ -191,18 +190,15 @@ const AccountPage: React.FC = () => {
     </div>
   );
   
-  return (
-    <Layout>
-      {isLoading ? (
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-600"></div>
-        </div>
-      ) : isAuthenticated && !user?.isStaff ? (
-        <CustomerDashboard />
-      ) : (
-        <AuthPage />
-      )}
-    </Layout>
+  // Return content directly without wrapping in Layout
+  return isLoading ? (
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-600"></div>
+    </div>
+  ) : isAuthenticated && !user?.isStaff ? (
+    <CustomerDashboard />
+  ) : (
+    <AuthPage />
   );
 };
 

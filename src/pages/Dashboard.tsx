@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
-import { DashboardHeader } from "../components/dashboard";
+// import axios from "axios";
+// import { DashboardHeader } from "../components/dashboard";
 
 // API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+// const API_BASE_URL =
+  // import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 interface DashboardStats {
   totalProducts: number;
@@ -36,17 +36,72 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine user role for conditional rendering
-  const userRole = user?.role || "customer";
-  const isAdmin = userRole === "admin";
-  const isManager = userRole === "manager" || isAdmin;
-  const isSupplier = userRole === "supplier";
+  // Debug log the user object when it changes
+  useEffect(() => {
+    console.log('Dashboard - Current user object:', user);
+  }, [user]);
+
+  // Improved hasRole function with debug logs
+  const hasRole = (roleName: string) => {
+    // Debug log
+    console.log(`Dashboard - Checking for role '${roleName}'`);
+
+    // Check primaryRole first (our new property)
+    if (user?.primaryRole === roleName) {
+      console.log(`Dashboard - User has primary role '${roleName}'`);
+      return true;
+    }
+    
+    // Check legacy role property
+    if (user?.role === roleName) {
+      console.log(`Dashboard - User has role property '${roleName}'`);
+      return true;
+    }
+    
+    // Check roles array if it exists
+    if (user?.roles) {
+      // For array of strings
+      if (Array.isArray(user.roles) && typeof user.roles[0] === 'string') {
+        const hasRoleInArray = user.roles.includes(roleName);
+        if (hasRoleInArray) {
+          console.log(`Dashboard - User has '${roleName}' in roles array (string format)`);
+        }
+        return hasRoleInArray;
+      }
+      
+      // For array of objects with name property (from your backend)
+      if (Array.isArray(user.roles) && typeof user.roles[0] === 'object') {
+        const hasRoleObject = user.roles.some(role => role.name === roleName);
+        if (hasRoleObject) {
+          console.log(`Dashboard - User has '${roleName}' in roles array (object format)`);
+        }
+        return hasRoleObject;
+      }
+    }
+    
+    console.log(`Dashboard - User does NOT have role '${roleName}'`);
+    return false;
+  };
+
+  // Make role checks mutually exclusive
+  const isAdmin = hasRole('admin');
+  const isManager = !isAdmin && hasRole('manager');
+  const isSupplier = !isAdmin && !isManager && hasRole('supplier');
+  const isCustomer = !isAdmin && !isManager && !isSupplier;
+
+  // Debug log the determined roles
+  useEffect(() => {
+    console.log('Dashboard - Role determination:', { isAdmin, isManager, isSupplier, isCustomer });
+  }, [isAdmin, isManager, isSupplier, isCustomer]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
 
       try {
+        // Debug which stats will be shown based on role
+        console.log('Fetching dashboard data with roles:', { isAdmin, isManager, isSupplier });
+        
         // In a real app, fetch from API
         // const response = await axios.get(`${API_BASE_URL}/dashboard/stats`);
         // setStats(response.data);
@@ -55,6 +110,7 @@ const Dashboard: React.FC = () => {
         setTimeout(() => {
           // Different stats based on role
           if (isAdmin) {
+            console.log('Setting ADMIN stats');
             setStats({
               totalProducts: 157,
               totalOrders: 43,
@@ -62,6 +118,7 @@ const Dashboard: React.FC = () => {
               totalRevenue: 15950.5,
             });
           } else if (isManager) {
+            console.log('Setting MANAGER stats');
             setStats({
               totalProducts: 157,
               totalOrders: 43,
@@ -69,6 +126,7 @@ const Dashboard: React.FC = () => {
               totalRevenue: 12450.75,
             });
           } else if (isSupplier) {
+            console.log('Setting SUPPLIER stats');
             setStats({
               totalProducts: 78,
               totalOrders: 24,
@@ -352,25 +410,35 @@ const Dashboard: React.FC = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {recentActivities.map(
-                (activity) =>
-                  // Filter activities based on role
-                  (activity.type !== "customer" || isAdmin || isManager) &&
-                  (activity.type !== "revenue" ||
-                    isAdmin ||
-                    isManager ||
-                    isSupplier) && (
-                    <div key={activity.id} className="p-4 hover:bg-gray-50">
-                      <p className="text-sm font-medium text-gray-800">
-                        {activity.title}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {activity.subtitle}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {activity.timeAgo}
-                      </p>
-                    </div>
-                  )
+                (activity) => {
+                  // Debug log for activity filtering
+                  console.log(`Filtering activity ${activity.id} of type ${activity.type}:`, {
+                    showToAdmin: isAdmin,
+                    showToManager: isManager,
+                    showToSupplier: isSupplier
+                  });
+                  
+                  return (
+                    // Filter activities based on role
+                    (activity.type !== "customer" || isAdmin || isManager) &&
+                    (activity.type !== "revenue" ||
+                      isAdmin ||
+                      isManager ||
+                      isSupplier) && (
+                      <div key={activity.id} className="p-4 hover:bg-gray-50">
+                        <p className="text-sm font-medium text-gray-800">
+                          {activity.title}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {activity.subtitle}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {activity.timeAgo}
+                        </p>
+                      </div>
+                    )
+                  );
+                }
               )}
             </div>
           )}
@@ -383,137 +451,143 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Quick actions section - visible only to admin and manager */}
-      {(isAdmin || isManager) && (
-        <div>
-          <h2 className="text-lg font-medium text-gray-800 mb-3">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
-              <div className="rounded-full bg-sky-100 p-3 mr-4">
-                <svg
-                  className="h-6 w-6 text-sky-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">Add Product</p>
-                <p className="text-xs text-gray-500">
-                  Create a new product listing
-                </p>
-              </div>
-            </button>
-            <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
-              <div className="rounded-full bg-green-100 p-3 mr-4">
-                <svg
-                  className="h-6 w-6 text-green-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">Process Orders</p>
-                <p className="text-xs text-gray-500">Manage pending orders</p>
-              </div>
-            </button>
-            <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
-              <div className="rounded-full bg-purple-100 p-3 mr-4">
-                <svg
-                  className="h-6 w-6 text-purple-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">Update Inventory</p>
-                <p className="text-xs text-gray-500">Adjust stock levels</p>
-              </div>
-            </button>
+      {(() => {
+        console.log('Should show admin/manager quick actions?', isAdmin || isManager);
+        return (isAdmin || isManager) && (
+          <div>
+            <h2 className="text-lg font-medium text-gray-800 mb-3">
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
+                <div className="rounded-full bg-sky-100 p-3 mr-4">
+                  <svg
+                    className="h-6 w-6 text-sky-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">Add Product</p>
+                  <p className="text-xs text-gray-500">
+                    Create a new product listing
+                  </p>
+                </div>
+              </button>
+              <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
+                <div className="rounded-full bg-green-100 p-3 mr-4">
+                  <svg
+                    className="h-6 w-6 text-green-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">Process Orders</p>
+                  <p className="text-xs text-gray-500">Manage pending orders</p>
+                </div>
+              </button>
+              <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
+                <div className="rounded-full bg-purple-100 p-3 mr-4">
+                  <svg
+                    className="h-6 w-6 text-purple-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">Update Inventory</p>
+                  <p className="text-xs text-gray-500">Adjust stock levels</p>
+                </div>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Supplier-specific section */}
-      {isSupplier && (
-        <div>
-          <h2 className="text-lg font-medium text-gray-800 mb-3">
-            Supply Management
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
-              <div className="rounded-full bg-indigo-100 p-3 mr-4">
-                <svg
-                  className="h-6 w-6 text-indigo-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">Update Inventory</p>
-                <p className="text-xs text-gray-500">
-                  Update your product stock
-                </p>
-              </div>
-            </button>
-            <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
-              <div className="rounded-full bg-pink-100 p-3 mr-4">
-                <svg
-                  className="h-6 w-6 text-pink-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">Delivery Schedule</p>
-                <p className="text-xs text-gray-500">
-                  View upcoming deliveries
-                </p>
-              </div>
-            </button>
+      {(() => {
+        console.log('Should show supplier section?', isSupplier);
+        return isSupplier && (
+          <div>
+            <h2 className="text-lg font-medium text-gray-800 mb-3">
+              Supply Management
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
+                <div className="rounded-full bg-indigo-100 p-3 mr-4">
+                  <svg
+                    className="h-6 w-6 text-indigo-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">Update Inventory</p>
+                  <p className="text-xs text-gray-500">
+                    Update your product stock
+                  </p>
+                </div>
+              </button>
+              <button className="bg-white shadow-md rounded-lg p-4 flex items-center text-left hover:bg-gray-50">
+                <div className="rounded-full bg-pink-100 p-3 mr-4">
+                  <svg
+                    className="h-6 w-6 text-pink-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">Delivery Schedule</p>
+                  <p className="text-xs text-gray-500">
+                    View upcoming deliveries
+                  </p>
+                </div>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

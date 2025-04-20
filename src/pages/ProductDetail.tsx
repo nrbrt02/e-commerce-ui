@@ -243,7 +243,6 @@ const ProductDetail: React.FC = () => {
   const isSoldOut = product.quantity === 0;
 
   return (
-    <Layout>
       <div className="container mx-auto px-4 py-8">
         {/* Product Breadcrumbs */}
         <div className="mb-6 text-sm text-gray-500">
@@ -260,7 +259,7 @@ const ProductDetail: React.FC = () => {
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"></path>
                   </svg>
                   {product.categories && product.categories.length > 0 ? (
-                    <Link to={`/category/${product.categories[0].slug}`} className="hover:text-sky-600 transition-colors">
+                    <Link to={`/products?category=${product.categories[0].slug}`} className="hover:text-sky-600 transition-colors">
                       {product.categories[0].name}
                     </Link>
                   ) : (
@@ -426,7 +425,7 @@ const ProductDetail: React.FC = () => {
                   Add to Cart
                 </button>
                 
-                <button
+                {/* <button
                   onClick={() => handleAddToCart(true)}
                   disabled={isSoldOut}
                   className={`h-12 px-4 font-medium rounded-md flex items-center justify-center ${
@@ -437,15 +436,15 @@ const ProductDetail: React.FC = () => {
                 >
                   <i className="fas fa-bolt mr-2"></i>
                   Buy Now
-                </button>
+                </button> */}
               </div>
               
-              <button
+              {/* <button
                 className="h-12 w-12 border border-gray-300 rounded-md text-gray-600 hover:text-red-500 hover:border-red-500 transition-colors duration-200"
                 aria-label="Add to wishlist"
               >
                 <i className="far fa-heart"></i>
-              </button>
+              </button> */}
             </div>
             
             {/* Added to cart message */}
@@ -467,7 +466,7 @@ const ProductDetail: React.FC = () => {
                   {product.categories.map(category => (
                     <Link 
                       key={category.id}
-                      to={`/category/${category.slug}`}
+                      to={`/products?category=${category.slug}`}
                       className="inline-block bg-sky-50 text-sky-700 px-3 py-1 rounded-full text-sm hover:bg-sky-100 transition-colors"
                     >
                       {category.name}
@@ -568,7 +567,6 @@ const ProductDetail: React.FC = () => {
           </div>
         </div>
       </div>
-    </Layout>
   );
 };
 

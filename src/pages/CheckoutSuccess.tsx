@@ -3,12 +3,21 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 
+interface OrderDetails {
+  orderId: string;
+  email: string;
+  total: number;
+  items: number;
+  shippingMethod: string;
+  paymentMethod?: string;
+}
+
 const CheckoutSuccess: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
   // Get order details from location state or use defaults
-  const orderDetails = location.state?.orderDetails || {
+  const orderDetails: OrderDetails = location.state?.orderDetails || {
     orderId: 'Unknown',
     email: 'your email',
     total: 0,
@@ -60,10 +69,16 @@ const CheckoutSuccess: React.FC = () => {
                 <span className="text-gray-600">Items:</span>
                 <span className="text-gray-800">{orderDetails.items}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm border-b border-gray-100 pb-2 mb-2">
                 <span className="text-gray-600">Shipping Method:</span>
                 <span className="text-gray-800">{orderDetails.shippingMethod}</span>
               </div>
+              {orderDetails.paymentMethod && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Payment Method:</span>
+                  <span className="text-gray-800">{orderDetails.paymentMethod}</span>
+                </div>
+              )}
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

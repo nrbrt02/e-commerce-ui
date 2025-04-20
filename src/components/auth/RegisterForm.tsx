@@ -1,7 +1,8 @@
 // src/components/auth/RegisterForm.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import { useAuth, RegisterData } from '../../context/AuthContext';
+import { showToast } from '../ui/ToastProvider';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -9,13 +10,10 @@ interface RegisterFormProps {
 
 const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
-    username: '',
+    username: '',  // Only visible/used for suppliers
     email: '',
     password: '',
     confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
     isStaff: false
   });
   
@@ -23,7 +21,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { register, error, clearError } = useAuth();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
@@ -72,13 +70,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     try {
       // Prepare registration data
       const registrationData: RegisterData = {
-        username: formData.username,
+        username: formData.isStaff ? formData.username : formData.email, // Use email as username for customers
         email: formData.email,
         password: formData.password,
-        firstName: formData.firstName || undefined,
-        lastName: formData.lastName || undefined,
-        isStaff: formData.isStaff,
-        phone: !formData.isStaff ? formData.phone : undefined
+        isStaff: formData.isStaff
       };
       
       // Register the user
@@ -90,20 +85,22 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         email: '',
         password: '',
         confirmPassword: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
         isStaff: false
       });
       
-      // Redirect based on user type
-      if (formData.isStaff) {
-        navigate('/dashboard');
-      }
-      // For regular customers, the modal will close and they'll stay on the current page
+      // Show success toast and redirect to login
+      showToast.success('Account created successfully! Please log in.');
+      
+      // Switch to login form
+      onSwitchToLogin();
       
     } catch (err) {
       console.error('Registration failed:', err);
+      
+      // Show error toast if error isn't already displayed by AuthContext
+      if (!error) {
+        showToast.error('Registration failed. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -120,27 +117,30 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
       )}
       
       <form onSubmit={handleSubmit}>
-        {/* Username field */}
-        <div className="mb-4">
-          <label 
-            htmlFor="username" 
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Username
-          </label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                       focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="Choose a username"
-            required
-            disabled={isSubmitting}
-          />
-        </div>
+        
+        {/* Username field - only for suppliers */}
+        {formData.isStaff && (
+          <div className="mb-4">
+            <label 
+              htmlFor="username" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                        focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder="Choose a username"
+              required={formData.isStaff}
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
         
         {/* Email field */}
         <div className="mb-4">
@@ -162,6 +162,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             required
             disabled={isSubmitting}
           />
+          {!formData.isStaff && (
+            <p className="mt-1 text-xs text-gray-500">
+              This will be used as your username to log in
+            </p>
+          )}
         </div>
         
         {/* Password field */}
@@ -210,71 +215,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             disabled={isSubmitting}
           />
         </div>
-        
-        {/* First Name field */}
-        <div className="mb-4">
-          <label 
-            htmlFor="firstName" 
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            First Name
-          </label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                       focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="Your first name"
-            disabled={isSubmitting}
-          />
-        </div>
-        
-        {/* Last Name field */}
-        <div className="mb-4">
-          <label 
-            htmlFor="lastName" 
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Last Name
-          </label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                       focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="Your last name"
-            disabled={isSubmitting}
-          />
-        </div>
-        
-        {/* Phone field - show only for customers */}
-        {!formData.isStaff && (
-          <div className="mb-4">
-            <label 
-              htmlFor="phone" 
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                        focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="Your phone number"
-              disabled={isSubmitting}
-            />
-          </div>
-        )}
         
         {/* User type selection */}
         <div className="mb-4">
