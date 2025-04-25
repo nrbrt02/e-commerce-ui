@@ -35,30 +35,32 @@ const Categories: React.FC = () => {
   }, [user]);
 
   // Improved hasRole function
-  const hasRole = (roleName: string) => {
-    // Check primaryRole first
-    if (user?.primaryRole === roleName) return true;
+const hasRole = (roleName: string) => {
+  if (user?.primaryRole === roleName) return true;
 
-    // Check legacy role property
-    if (user?.role === roleName) return true;
+  if (user?.role === roleName) return true;
 
-    // Check roles array if it exists
-    if (user?.roles) {
-      // For array of strings
-      if (Array.isArray(user.roles) && typeof user.roles[0] === "string") {
-        return user.roles.includes(roleName);
-      }
-
-      // For array of objects with name property
-      if (Array.isArray(user.roles) && typeof user.roles[0] === "object") {
-        return user.roles.some((role) => role.name === roleName);
-      }
+  if (user?.roles) {
+    if (Array.isArray(user.roles) && typeof user.roles[0] === 'string') {
+      return user.roles.includes(roleName);
     }
 
-    return false;
-  };
+    if (Array.isArray(user.roles) && typeof user.roles[0] === 'object') {
+      return user.roles.some((role: string | { name: string }) => {
+        if (typeof role === 'string') {
+          return role === roleName;
+        } else {
+          return role.name === roleName;
+        }
+      });
+    }
+  }
+
+  return false;
+};
 
   const isAdmin = hasRole("admin");
+  const isSuperadmin = hasRole("superadmin");
   // const isManager = !isAdmin && hasRole("manager");
   // const isSupplier = !isAdmin && !isManager && hasRole("supplier");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -325,7 +327,7 @@ const Categories: React.FC = () => {
             </div>
 
             {/* Action buttons - only visible to admin users */}
-            {isAdmin ? (
+            {isAdmin || isSuperadmin ? (
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleCreate(category.id)}
@@ -341,13 +343,18 @@ const Categories: React.FC = () => {
                 >
                   <PencilIcon className="h-4 w-4" />
                 </button>
-                <button
+                {isSuperadmin ? (
+                  <button
                   onClick={() => handleDelete(category.id)}
                   className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors duration-150"
                   title="Delete"
                 >
                   <TrashIcon className="h-4 w-4" />
                 </button>
+                ): (
+                  <div></div>
+                )}
+                
               </div>
             ) : (
               <div className="w-20"></div>
@@ -447,7 +454,7 @@ const Categories: React.FC = () => {
                 </>
               )}
             </button>
-            {isAdmin && (
+            { isAdmin || isSuperadmin && (
               <button
                 onClick={() => handleCreate()}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700"
@@ -659,7 +666,7 @@ const Categories: React.FC = () => {
       )}
 
       {/* Category modal - only render if user is admin */}
-      {isAdmin && (
+      { isAdmin || isSuperadmin && (
         <CategoryModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}

@@ -1,305 +1,243 @@
-// src/utils/apiClient.ts
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, AUTH_ENDPOINTS } from '../constants/auth-constants';
 
-// Get environment variables
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000');
-const AUTH_TOKEN_KEY = import.meta.env.VITE_AUTH_TOKEN_KEY || 'fast_shopping_token';
+// API base URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-// Define response types
-interface AuthResponse {
-  token: string;
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    isStaff?: boolean;
-    role?: string;
-    roles?: string[];
-    [key: string]: any;
-  };
-}
+// Check for inconsistent token storage
+const checkAndMigrateTokens = () => {
+  // Alternative token keys that might be used in different parts of the app
+  const possibleTokenKeys = [
+    'fast-shopping-auth-token',
+    'authToken',
+    'fast-shopping-token'
+  ];
+  
+  // Check if we don't have a token under our primary key but it exists in another key
+  if (!localStorage.getItem(AUTH_TOKEN_KEY)) {
+    for (const key of possibleTokenKeys) {
+      const token = localStorage.getItem(key);
+      if (token && key !== AUTH_TOKEN_KEY) {
+        console.log(`Found token under different key "${key}", migrating to "${AUTH_TOKEN_KEY}"`);
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        break;
+      }
+    }
+  }
+  
+  // Similar check for refresh token
+  const possibleRefreshKeys = ['refreshToken', 'refresh_token', 'fast-shopping-refresh-token'];
+  if (!localStorage.getItem(REFRESH_TOKEN_KEY)) {
+    for (const key of possibleRefreshKeys) {
+      const token = localStorage.getItem(key);
+      if (token && key !== REFRESH_TOKEN_KEY) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, token);
+        break;
+      }
+    }
+  }
+};
 
-interface MessageResponse {
-  message: string;
-}
+// Run the token migration check when module is loaded
+checkAndMigrateTokens();
 
-// Create axios instance
-const axiosInstance: AxiosInstance = axios.create({
+// Create a base axios instance
+export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for CORS requests with credentials
 });
 
-// Request interceptor for API calls
-axiosInstance.interceptors.request.use(
+// Request interceptor to add auth token
+apiClient.interceptors.request.use(
   (config) => {
+    // Get token from localStorage using the constant key
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
+    
+    if (token && config.headers) {
+      // Properly set the Authorization header with Bearer prefix
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`Setting auth header with token for request to: ${config.url}`);
+    } else {
+      console.log(`No token found for request to: ${config.url}`);
+      
+      // For debugging: Check if user object exists in localStorage
+      const userJson = localStorage.getItem('fast_shopping_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          console.log('User exists in localStorage but no token found:', 
+            user.id ? `ID: ${user.id}` : 'No user ID');
+        } catch (e) {
+          console.error('Failed to parse user JSON:', e);
+        }
+      } else {
+        console.log('No user found in localStorage');
+      }
     }
+    
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for API calls
-axiosInstance.interceptors.response.use(
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
   (response) => {
+    console.log(`Response success for ${response.config.url}:`, { 
+      status: response.status,
+      data: response.data ? 'data present' : 'no data'
+    });
     return response;
   },
-  (error) => {
-    // Handle 401 - Unauthorized (token expired or invalid)
-    if (error.response && error.response.status === 401) {
-      // Clear local storage
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      localStorage.removeItem(import.meta.env.VITE_AUTH_USER_KEY || 'fast_shopping_user');
+  async (error) => {
+    // Log the error for debugging
+    console.error(`Response error for ${error.config?.url}:`, {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data || 'No data'
+    });
+    
+    const originalRequest = error.config;
+
+    // Handle token refresh if 401 (unauthorized)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Check if we have a refresh token
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem('refreshToken');
       
-      // Redirect to login page if not already there
-      if (!window.location.pathname.includes('/account')) {
-        window.location.href = '/account';
+      if (refreshToken) {
+        try {
+          console.log('Attempting to refresh token...');
+          originalRequest._retry = true;
+          
+          // Attempt to refresh the token
+          const response = await axios.post(`${API_BASE_URL}${AUTH_ENDPOINTS.REFRESH_TOKEN}`, {
+            refreshToken
+          });
+          
+          // If successful, update tokens
+          if (response.data.token) {
+            console.log('Token refresh successful');
+            localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+            
+            if (response.data.refreshToken) {
+              localStorage.setItem(REFRESH_TOKEN_KEY, response.data.refreshToken);
+            }
+            
+            // Update the original request with the new token
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${response.data.token}`;
+            }
+            return apiClient(originalRequest);
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          
+          // If refresh fails, log the user out
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+          localStorage.removeItem('refreshToken'); // Remove legacy key too
+          
+          // Log out only if configured to do so
+          if (window.location.pathname.includes('/account') || 
+              window.location.pathname.includes('/dashboard')) {
+            // Redirect to login page if needed and not already there
+            if (!window.location.pathname.includes('/account/login')) {
+              window.location.href = '/account/login?expired=true';
+            }
+          }
+          
+          return Promise.reject(refreshError);
+        }
+      } else {
+        console.warn('401 response but no refresh token available');
+        
+        // For development only: Log the current token to help debug
+        const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
+        console.log('Current token at error time:', currentToken ? 'present' : 'not present');
+        
+        // Only handle auth redirect for account and dashboard pages
+        // This prevents redirects from public pages that might just have permission issues
+        if ((window.location.pathname.includes('/account') || 
+             window.location.pathname.includes('/dashboard')) &&
+            !window.location.pathname.includes('/account/login')) {
+          // Remove tokens before redirect
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+          localStorage.removeItem('refreshToken'); // Remove legacy key too
+          
+          window.location.href = '/account/login?session=expired';
+        }
       }
     }
+    
+    // For wishlist-specific errors, provide more detailed information
+    if (error.config?.url?.includes('/wishlists')) {
+      if (error.response?.status === 401) {
+        console.error('Unauthorized wishlist access:', {
+          wishlistEndpoint: error.config.url,
+          authHeader: error.config.headers?.Authorization ? 'present' : 'missing',
+          token: localStorage.getItem(AUTH_TOKEN_KEY) ? 'token in storage' : 'no token in storage'
+        });
+      } else if (error.response?.status === 404) {
+        console.error('Wishlist not found or access denied:', {
+          wishlistEndpoint: error.config.url,
+          authHeader: error.config.headers?.Authorization ? 'present' : 'missing'
+        });
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
 
-// Generic API service with typed requests and responses
-class ApiService {
-  // Generic GET request
-  static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await axiosInstance.get(url, config);
-    return response.data;
-  }
-
-  // Generic POST request
-  static async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await axiosInstance.post(url, data, config);
-    return response.data;
-  }
-
-  // Generic PUT request
-  static async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await axiosInstance.put(url, data, config);
-    return response.data;
-  }
-
-  // Generic PATCH request
-  static async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await axiosInstance.patch(url, data, config);
-    return response.data;
-  }
-
-  // Generic DELETE request
-  static async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response: AxiosResponse<T> = await axiosInstance.delete(url, config);
-    return response.data;
-  }
-}
-
-// Auth service for authentication related APIs
-export const authAPI = {
-  login: async (email: string, password: string, isStaff: boolean = false): Promise<AuthResponse> => {
-    // Using a single endpoint since your backend seems to distinguish using the same endpoint
-    const endpoint = '/auth/login';
-    try {
-      // Send the request with isStaff flag if needed
-      const response = await ApiService.post<any>(endpoint, { 
-        email, 
-        password,
-        userType: isStaff ? 'admin' : 'customer' // Add this if your backend expects it
-      });
-      
-      // Log the response for debugging
-      console.log('Login API response:', response);
-      
-      // Handle response format based on your backend
-      // If your backend returns { status, token, data: { user } }
-      if (response.status === 'success' && response.token && response.data?.user) {
-        return {
-          token: response.token,
-          user: response.data.user
-        };
-      } 
-      
-      // If your backend returns { token, user }
-      if (response.token && response.user) {
-        return response;
-      }
-      
-      throw new Error('Invalid response format from server');
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  },
-  
-  register: async (data: any): Promise<AuthResponse> => {
-    // Determine which endpoint to use based on isStaff flag
-    const endpoint = data.isStaff ? '/auth/register' : '/auth/customer/register';
+// Create a generic API service with common methods
+export const createApiService = <T>(endpoint: string) => {
+  return {
+    getAll: async (params = {}): Promise<T[]> => {
+      const response = await apiClient.get(endpoint, { params });
+      return response.data;
+    },
     
-    // Prepare registration data
-    let registrationData;
+    getById: async (id: number | string): Promise<T> => {
+      const response = await apiClient.get(`${endpoint}/${id}`);
+      return response.data;
+    },
     
-    if (data.isStaff) {
-      // For supplier registration, include roleName
-      registrationData = {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        roleName: "supplier" // Set roleName to supplier for staff users
-      };
-    } else {
-      // For customer registration, exclude roleName
-      registrationData = {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone
-      };
-    }
+    create: async (data: Partial<T>): Promise<T> => {
+      const response = await apiClient.post(endpoint, data);
+      return response.data;
+    },
     
-    // Send the registration request
-    return ApiService.post<AuthResponse>(endpoint, registrationData);
-  },
-  
-  forgotPassword: async (email: string, isStaff: boolean = false): Promise<MessageResponse> => {
-    const endpoint = isStaff ? '/auth/staff/forgot-password' : '/auth/forgot-password';
-    return ApiService.post<MessageResponse>(endpoint, { email });
-  },
-  
-  resetPassword: async (token: string, password: string): Promise<MessageResponse> => {
-    return ApiService.post<MessageResponse>('/auth/reset-password', { token, password });
-  },
-  
-  updatePassword: async (currentPassword: string, newPassword: string): Promise<MessageResponse> => {
-    return ApiService.post<MessageResponse>('/auth/update-password', { 
-      currentPassword, 
-      newPassword 
-    });
-  },
-  
-  verifyEmail: async (token: string): Promise<MessageResponse> => {
-    return ApiService.post<MessageResponse>('/auth/verify-email', { token });
-  },
-  
-  refreshToken: async (): Promise<{ token: string }> => {
-    return ApiService.post<{ token: string }>('/auth/refresh-token');
-  },
-};
-
-// Customer service for customer profile related APIs
-export const customerAPI = {
-  getProfile: async () => {
-    return ApiService.get<any>('/customers/profile');
-  },
-  
-  updateProfile: async (data: any) => {
-    return ApiService.put<any>('/customers/profile', data);
-  },
-  
-  getOrders: async (page: number = 1, limit: number = 10) => {
-    return ApiService.get<any>(`/customers/orders?page=${page}&limit=${limit}`);
-  },
-  
-  getOrderDetails: async (orderId: string) => {
-    return ApiService.get<any>(`/customers/orders/${orderId}`);
-  },
-};
-
-// Admin service for admin-specific APIs
-export const adminAPI = {
-  getDashboardStats: async () => {
-    return ApiService.get<any>('/admin/dashboard/stats');
-  },
-  
-  getUsers: async (page: number = 1, limit: number = 10) => {
-    return ApiService.get<any>(`/admin/users?page=${page}&limit=${limit}`);
-  },
-  
-  getUserDetails: async (userId: string) => {
-    return ApiService.get<any>(`/admin/users/${userId}`);
-  },
-  
-  updateUser: async (userId: string, data: any) => {
-    return ApiService.put<any>(`/admin/users/${userId}`, data);
-  },
-  
-  deleteUser: async (userId: string) => {
-    return ApiService.delete<any>(`/admin/users/${userId}`);
-  },
-};
-
-// Product service for product-related APIs
-export const productAPI = {
-  getProducts: async (page: number = 1, limit: number = 10, filters?: any) => {
-    let url = `/products?page=${page}&limit=${limit}`;
-    if (filters) {
-      const queryParams = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
-        }
-      });
-      if (queryParams.toString()) {
-        url += `&${queryParams.toString()}`;
-      }
+    update: async (id: number | string, data: Partial<T>): Promise<T> => {
+      const response = await apiClient.put(`${endpoint}/${id}`, data);
+      return response.data;
+    },
+    
+    delete: async (id: number | string): Promise<void> => {
+      await apiClient.delete(`${endpoint}/${id}`);
+    },
+    
+    // Custom request for more complex scenarios
+    customRequest: async <R>(config: AxiosRequestConfig): Promise<R> => {
+      const response = await apiClient(config);
+      return response.data;
     }
-    return ApiService.get<any>(url);
-  },
-  
-  getProductDetails: async (productId: string) => {
-    return ApiService.get<any>(`/products/${productId}`);
-  },
-  
-  createProduct: async (data: any) => {
-    return ApiService.post<any>('/admin/products', data);
-  },
-  
-  updateProduct: async (productId: string, data: any) => {
-    return ApiService.put<any>(`/admin/products/${productId}`, data);
-  },
-  
-  deleteProduct: async (productId: string) => {
-    return ApiService.delete<any>(`/admin/products/${productId}`);
-  },
+  };
 };
 
-// Order service for order-related APIs
-export const orderAPI = {
-  getOrders: async (page: number = 1, limit: number = 10, filters?: any) => {
-    let url = `/admin/orders?page=${page}&limit=${limit}`;
-    if (filters) {
-      const queryParams = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
-        }
-      });
-      if (queryParams.toString()) {
-        url += `&${queryParams.toString()}`;
-      }
-    }
-    return ApiService.get<any>(url);
-  },
-  
-  getOrderDetails: async (orderId: string) => {
-    return ApiService.get<any>(`/admin/orders/${orderId}`);
-  },
-  
-  updateOrderStatus: async (orderId: string, status: string) => {
-    return ApiService.patch<any>(`/admin/orders/${orderId}/status`, { status });
-  },
+// Export a default apiService for common use cases
+const apiService = {
+  get: apiClient.get,
+  post: apiClient.post,
+  put: apiClient.put,
+  delete: apiClient.delete,
+  patch: apiClient.patch
 };
 
-export default ApiService;
+export default apiService;

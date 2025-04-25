@@ -2,6 +2,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { useAuth } from '../../context/AuthContext';
+import { showToast } from '../../components/ui/ToastProvider';
+import wishlistApi from '../../utils/wishlistApi';
 
 // Define types based on your API response
 interface ProductImage {
@@ -54,7 +58,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   isLoading = false 
 }) => {
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { user, openAuthModal } = useAuth();
   const [addedToCartIds, setAddedToCartIds] = useState<number[]>([]);
+  const [wishlistLoadingIds, setWishlistLoadingIds] = useState<number[]>([]);
 
   // Parse image URLs
   const getFirstImageUrl = (imageUrlsJson: string[]): string => {
@@ -63,16 +70,32 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     }
     
     try {
-      const parsed = JSON.parse(imageUrlsJson[0]) as ProductImage;
-      // Handle both local and remote URLs
-      if (parsed.url.startsWith('http')) {
-        return parsed.url;
-      } else {
-        // For demo purposes, use a placeholder
-        return "/api/placeholder/150/200";
+      const firstImageUrl = imageUrlsJson[0];
+      
+      // If it's already a string URL, use it directly
+      if (typeof firstImageUrl === 'string') {
+        // Check if it's a JSON string that needs parsing
+        if (firstImageUrl.startsWith('{') && firstImageUrl.includes('url')) {
+          try {
+            const parsed = JSON.parse(firstImageUrl) as ProductImage;
+            if (parsed && parsed.url) {
+              return parsed.url;
+            }
+          } catch (error) {
+            console.error("Error parsing image URL JSON:", error);
+          }
+        }
+        
+        // If it's a direct URL or parsing failed, just return the string
+        return firstImageUrl.startsWith('http') ? 
+          firstImageUrl : 
+          "/api/placeholder/150/200";
       }
+      
+      // Fallback to placeholder if the URL isn't a string
+      return "/api/placeholder/150/200";
     } catch (error) {
-      console.error("Error parsing image URL:", error);
+      console.error("Error processing image URL:", error);
       return "/api/placeholder/150/200";
     }
   };
@@ -125,6 +148,103 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       setTimeout(() => {
         setAddedToCartIds(prev => prev.filter(id => id !== product.id));
       }, 2000);
+      
+      // Show success toast
+      showToast.success(`${product.name} added to cart`);
+    }
+  };
+
+  // Handle toggle wishlist
+  const handleToggleWishlist = async (product: ApiProduct) => {
+    if (!product) return;
+    
+    // If user is not logged in, open auth modal
+    if (!user) {
+      openAuthModal("login");
+      return;
+    }
+    
+    // Set loading state
+    setWishlistLoadingIds(prev => [...prev, product.id]);
+    
+    // Debug auth status
+    const token = localStorage.getItem("fast_shopping_token");
+    console.log("Auth status before wishlist action:", {
+      token: token ? "Present" : "Missing",
+      tokenLength: token?.length || 0,
+      isAuthenticated: !!user,
+      userExists: !!user,
+      userId: user?.id,
+    });
+    
+    const productInWishlist = isInWishlist(product.id.toString());
+    
+    try {
+      if (productInWishlist) {
+        // Remove from wishlist
+        const success = await removeFromWishlist(product.id.toString());
+        if (success) {
+          showToast.info(`${product.name} removed from wishlist`);
+        } else {
+          throw new Error("Failed to remove from wishlist");
+        }
+      } else {
+        // Add to wishlist
+        // First get or create default wishlist
+        let wishlistId;
+        
+        try {
+          // Try to get wishlists
+          const wishlists = await wishlistApi.getWishlists();
+          if (
+            wishlists &&
+            wishlists.data &&
+            wishlists.data.wishlists &&
+            wishlists.data.wishlists.length > 0
+          ) {
+            // Use the first wishlist
+            wishlistId = wishlists.data.wishlists[0].id;
+          } else {
+            // Create a new wishlist if none exists
+            const newWishlist = await wishlistApi.createWishlist({
+              name: "My Wishlist",
+              isPublic: false,
+            });
+            wishlistId = newWishlist.data.wishlist.id;
+          }
+        } catch (error) {
+          console.error("Error getting/creating wishlist:", error);
+          // Fallback to default wishlist
+          wishlistId = "default";
+        }
+        
+        // Now add the product to the wishlist
+        await wishlistApi.addProductToWishlist(wishlistId, {
+          productId: product.id,
+        });
+        
+        // Add to local state
+        const imageUrl = getFirstImageUrl(product.imageUrls);
+        
+        addToWishlist({
+          id: product.id.toString(),
+          name: product.name,
+          slug: product.id.toString(), // Using ID as slug if not available
+          price: parseFloat(product.price),
+          image: imageUrl,
+          inStock: product.quantity > 0,
+          category: product.categories && product.categories.length > 0 ? product.categories[0].name : undefined,
+          discount: calculateDiscount(product.price, product.compareAtPrice)
+        });
+        
+        showToast.success(`${product.name} added to wishlist`);
+      }
+    } catch (error) {
+      console.error("Error updating wishlist:", error);
+      showToast.error(`Failed to update wishlist: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      // Remove loading state
+      setWishlistLoadingIds(prev => prev.filter(id => id !== product.id));
     }
   };
 
@@ -196,6 +316,8 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             const discount = calculateDiscount(product.price, product.compareAtPrice);
             const savings = calculateSavings(product.price, product.compareAtPrice);
             const isAddedToCart = addedToCartIds.includes(product.id);
+            const isWishlistLoading = wishlistLoadingIds.includes(product.id);
+            const isInWishlistAlready = isInWishlist(product.id.toString());
             const isLowStock = product.quantity <= product.lowStockThreshold && product.lowStockThreshold > 0;
             const isSoldOut = product.quantity === 0;
             
@@ -296,20 +418,24 @@ const ProductGrid: React.FC<ProductGridProps> = ({
                     </button>
                   )}
                   
-                  <button className="p-2 border border-gray-300 hover:border-sky-600 rounded group-hover:border-sky-600 transition-colors duration-200 flex-shrink-0">
-                    <svg 
-                      className="h-5 w-5 text-gray-600 group-hover:text-sky-600 transition-colors duration-200" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-                      />
-                    </svg>
+                  {/* Wishlist button - improved version consistent with other components */}
+                  <button 
+                    onClick={() => handleToggleWishlist(product)}
+                    disabled={isWishlistLoading}
+                    className={`p-2 border rounded transition-colors duration-200 flex-shrink-0 ${
+                      isInWishlistAlready 
+                        ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-500" 
+                        : "border-gray-300 hover:border-sky-600 text-gray-600 hover:text-sky-600"
+                    } ${
+                      isWishlistLoading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    title={isInWishlistAlready ? "Remove from Wishlist" : "Add to Wishlist"}
+                  >
+                    {isWishlistLoading ? (
+                      <i className="fas fa-spinner fa-spin"></i>
+                    ) : (
+                      <i className={`${isInWishlistAlready ? "fas" : "far"} fa-heart`}></i>
+                    )}
                   </button>
                 </div>
               </div>

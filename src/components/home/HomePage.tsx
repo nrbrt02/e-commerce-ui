@@ -15,83 +15,13 @@ const HomePage: React.FC = () => {
     return products.filter(product => product.isFeatured);
   }, [products]);
 
-  // Sample data for categories
-  // const categories = [
-  //   {
-  //     id: 1,
-  //     name: "Mobile",
-  //     icon: "/api/placeholder/40/40",
-  //     isActive: true
-  //   },
-  //   {
-  //     id: 2,
-  //     name: "Cosmetics",
-  //     icon: "/api/placeholder/40/40"
-  //   },
-  //   {
-  //     id: 3,
-  //     name: "Electronics",
-  //     icon: "/api/placeholder/40/40"
-  //   },
-  //   {
-  //     id: 4,
-  //     name: "Furniture",
-  //     icon: "/api/placeholder/40/40"
-  //   },
-  //   {
-  //     id: 5,
-  //     name: "Watches",
-  //     icon: "/api/placeholder/40/40"
-  //   },
-  //   {
-  //     id: 6,
-  //     name: "Decor",
-  //     icon: "/api/placeholder/40/40"
-  //   },
-  //   {
-  //     id: 7,
-  //     name: "Accessories",
-  //     icon: "/api/placeholder/40/40"
-  //   }
-  // ];
-
-  // // Sample data for brands
-  // const brands = [
-  //   {
-  //     id: 1,
-  //     name: "IPHONE",
-  //     logo: "/api/placeholder/30/30",
-  //     image: "/api/placeholder/100/150",
-  //     discount: "UP to 80% OFF",
-  //     bgColor: "bg-gray-900",
-  //     textColor: "text-gray-400"
-  //   },
-  //   {
-  //     id: 2,
-  //     name: "REALME",
-  //     logo: "/api/placeholder/30/30",
-  //     image: "/api/placeholder/100/150",
-  //     discount: "UP to 80% OFF",
-  //     bgColor: "bg-yellow-100",
-  //     textColor: "text-yellow-600"
-  //   },
-  //   {
-  //     id: 3,
-  //     name: "XIAOMI",
-  //     logo: "/api/placeholder/30/30",
-  //     image: "/api/placeholder/100/150",
-  //     discount: "UP to 80% OFF",
-  //     bgColor: "bg-orange-100",
-  //     textColor: "text-orange-600"
-  //   }
-  // ];
-
   return (
     <div className="container mx-auto px-4">
       <div className="my-6">
         <HeroBanner />
       </div>
       
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="my-8">
         {error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8">
@@ -118,7 +48,7 @@ const HomePage: React.FC = () => {
           />
         </div>
       )}
-      
+    </div>
       {/* <div className="my-8">
         <CategoryGrid 
           title="Shop From"

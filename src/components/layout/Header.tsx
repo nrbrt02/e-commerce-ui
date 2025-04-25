@@ -52,6 +52,17 @@ const Header: React.FC = () => {
     closeDropdown();
   };
 
+  // Get display name based on available user information
+  const getDisplayName = () => {
+    if (user) {
+      if (user.firstName) return user.firstName;
+      if (user.username) return user.username;
+      if (user.email) return user.email.split('@')[0];
+      return 'User';
+    }
+    return 'Guest';
+  };
+
   return (
     <header className="bg-white shadow-md py-2 px-4 lg:px-6">
       <div className="max-w-7xl mx-auto">
@@ -114,7 +125,7 @@ const Header: React.FC = () => {
               {isAuthenticated && isAccountDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
                   <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
-                    <p className="font-medium">Hi, {user?.firstName || user?.username}</p>
+                    <p className="font-medium">Hi, {getDisplayName()}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   
@@ -160,7 +171,7 @@ const Header: React.FC = () => {
 
             {/* Wishlist */}
             <Link
-              to="/wishlist"
+              to="/account?tab=wishlist"
               className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
               aria-label="Wishlist"
             >

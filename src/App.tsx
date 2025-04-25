@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ToastProvider } from './components/ui/ToastProvider';
 
@@ -16,52 +17,56 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Categories from './pages/Categories';
 import Orders from './pages/Orders';
+import Customers from './pages/Customers';
 import Analytics from './pages/Analytics';
 import NotFound from './pages/NotFound';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import CheckoutSuccess from './pages/CheckoutSuccess';
-import AllProducts from './pages/AllProducts'; // Add the new AllProducts page
+import AllProducts from './pages/AllProducts';
 
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <ToastProvider>
-          <Router>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="account/*" element={<Account />} />
-                <Route path="cart" element={<Cart />} />
-                <Route path="checkout" element={<Checkout />} />
-                <Route path="checkout/success" element={<CheckoutSuccess />} />
-                <Route path="product/:id" element={<ProductDetail />} />
-                <Route path="products" element={<AllProducts />} /> {/* Add the AllProducts route */}
-                <Route path="*" element={<NotFound />} />
-              </Route>
-
-              {/* Dashboard routes - protected */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Dashboard />} />
-                <Route path="products" element={<Products />} />
-                <Route path="categories" element={<Categories />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Route>
-            </Routes>
-          </Router>
-        </ToastProvider>
+        <WishlistProvider>
+          <ToastProvider>
+            <Router>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Home />} />
+                  <Route path="account/*" element={<Account />} />
+                  <Route path="cart" element={<Cart />} />
+                  <Route path="checkout" element={<Checkout />} />
+                  <Route path="checkout/success" element={<CheckoutSuccess />} />
+                  <Route path="product/:id" element={<ProductDetail />} />
+                  <Route path="products" element={<AllProducts />} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
+                
+                {/* Dashboard routes - protected */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="products" element={<Products />} />
+                  <Route path="categories" element={<Categories />} />
+                  <Route path="orders" element={<Orders />} />
+                  <Route path="customers" element={<Customers />} /> {/* Add the Customers route */}
+                  <Route path="analytics" element={<Analytics />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Route>
+              </Routes>
+            </Router>
+          </ToastProvider>
+        </WishlistProvider>
       </CartProvider>
     </AuthProvider>
   );

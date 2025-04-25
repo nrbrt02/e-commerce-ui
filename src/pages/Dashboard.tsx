@@ -22,6 +22,21 @@ interface RecentActivity {
   timeAgo: string;
 }
 
+// Define proper types for user roles
+interface RoleObject {
+  name: string;
+  permissions?: string[];
+}
+
+// Extended user type to properly handle role structures
+interface UserWithRoles {
+  firstName?: string;
+  username?: string;
+  primaryRole?: string;
+  role?: string;
+  roles?: (string | RoleObject)[];
+}
+
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -41,42 +56,47 @@ const Dashboard: React.FC = () => {
     console.log('Dashboard - Current user object:', user);
   }, [user]);
 
-  // Improved hasRole function with debug logs
-  const hasRole = (roleName: string) => {
+  // Improved hasRole function with debug logs and proper type checking
+  const hasRole = (roleName: string): boolean => {
     // Debug log
     console.log(`Dashboard - Checking for role '${roleName}'`);
 
+    if (!user) return false;
+
+    // Cast user to our extended type for better TypeScript support
+    const typedUser = user as UserWithRoles;
+
     // Check primaryRole first (our new property)
-    if (user?.primaryRole === roleName) {
+    if (typedUser?.primaryRole === roleName) {
       console.log(`Dashboard - User has primary role '${roleName}'`);
       return true;
     }
     
     // Check legacy role property
-    if (user?.role === roleName) {
+    if (typedUser?.role === roleName) {
       console.log(`Dashboard - User has role property '${roleName}'`);
       return true;
     }
     
     // Check roles array if it exists
-    if (user?.roles) {
-      // For array of strings
-      if (Array.isArray(user.roles) && typeof user.roles[0] === 'string') {
-        const hasRoleInArray = user.roles.includes(roleName);
-        if (hasRoleInArray) {
-          console.log(`Dashboard - User has '${roleName}' in roles array (string format)`);
+    if (typedUser?.roles) {
+      // For array of strings or objects
+      return typedUser.roles.some(role => {
+        if (typeof role === 'string') {
+          const hasStringRole = role === roleName;
+          if (hasStringRole) {
+            console.log(`Dashboard - User has '${roleName}' in roles array (string format)`);
+          }
+          return hasStringRole;
+        } else {
+          // Role is an object with name property
+          const hasObjectRole = role.name === roleName;
+          if (hasObjectRole) {
+            console.log(`Dashboard - User has '${roleName}' in roles array (object format)`);
+          }
+          return hasObjectRole;
         }
-        return hasRoleInArray;
-      }
-      
-      // For array of objects with name property (from your backend)
-      if (Array.isArray(user.roles) && typeof user.roles[0] === 'object') {
-        const hasRoleObject = user.roles.some(role => role.name === roleName);
-        if (hasRoleObject) {
-          console.log(`Dashboard - User has '${roleName}' in roles array (object format)`);
-        }
-        return hasRoleObject;
-      }
+      });
     }
     
     console.log(`Dashboard - User does NOT have role '${roleName}'`);

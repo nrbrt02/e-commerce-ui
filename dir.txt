@@ -1,0 +1,132 @@
+.
+├── dir.txt
+├── dist
+│   ├── assets
+│   │   ├── index-BuSQZGLF.js
+│   │   └── index-DjEX3eaW.css
+│   ├── dist.zip
+│   ├── index.html
+│   └── vite.svg
+├── eslint.config.js
+├── index.html
+├── package.json
+├── package-lock.json
+├── postcss.config.js
+├── public
+│   └── vite.svg
+├── README.md
+├── src
+│   ├── App.css
+│   ├── App.tsx
+│   ├── assets
+│   │   └── react.svg
+│   ├── components
+│   │   ├── account
+│   │   │   ├── AddressManagement.tsx
+│   │   │   ├── CustomerProfile.tsx
+│   │   │   └── UpdatePassword.tsx
+│   │   ├── auth
+│   │   │   ├── AuthModal.tsx
+│   │   │   ├── AuthPage.tsx
+│   │   │   ├── ForgotPassword.tsx
+│   │   │   ├── FormInput.tsx
+│   │   │   ├── LoginForm.tsx
+│   │   │   └── RegisterForm.tsx
+│   │   ├── cart
+│   │   │   └── CartDropdown.tsx
+│   │   ├── checkout
+│   │   │   ├── CheckoutPage.tsx
+│   │   │   ├── index.ts
+│   │   │   └── PayPalPayment.tsx
+│   │   ├── dashboard
+│   │   │   ├── CategoryModal.tsx
+│   │   │   ├── CustomerDetailsModal.tsx
+│   │   │   ├── CustomerPasswordModal.tsx
+│   │   │   ├── DashboardHeader.tsx
+│   │   │   ├── DashboardLayout.tsx
+│   │   │   ├── index.ts
+│   │   │   ├── ProductDetailsModal.tsx
+│   │   │   ├── ProductModal.tsx
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── StartCard.tsx
+│   │   ├── home
+│   │   │   ├── BrandCarousel.tsx
+│   │   │   ├── CategoryGrid.tsx
+│   │   │   ├── HeroBanner.tsx
+│   │   │   ├── HomePage.tsx
+│   │   │   └── ProductGrid.tsx
+│   │   ├── layout
+│   │   │   ├── Footer.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── Layout.tsx
+│   │   │   ├── Navigation.tsx
+│   │   │   └── TopBar.tsx
+│   │   ├── products
+│   │   │   ├── CartContext.tsx
+│   │   │   ├── CategoryFilter.tsx
+│   │   │   ├── index.ts
+│   │   │   ├── ProductCard.tsx
+│   │   │   ├── ProductInfoTabs.tsx
+│   │   │   ├── ProductReviews.tsx
+│   │   │   ├── ProductSkeleton.tsx
+│   │   │   └── ProductSpecifications.tsx
+│   │   ├── ProtectedRoute.tsx
+│   │   └── ui
+│   │       ├── Button.tsx
+│   │       ├── CategoryCard.tsx
+│   │       ├── ProductCard.tsx
+│   │       ├── Skeleton.tsx
+│   │       └── ToastProvider.tsx
+│   ├── constants
+│   │   └── auth-constants.ts
+│   ├── context
+│   │   ├── AuthContext.tsx
+│   │   ├── CartContext.tsx
+│   │   └── WishlistContext.tsx
+│   ├── controllers
+│   │   └── reviewStatsController.ts
+│   ├── data
+│   │   └── sampleProducts.ts
+│   ├── env.d.ts
+│   ├── hooks
+│   │   ├── useProducts.ts
+│   │   └── useScreenWidth.ts
+│   ├── index.css
+│   ├── main.tsx
+│   ├── pages
+│   │   ├── Account.tsx
+│   │   ├── AllProducts.tsx
+│   │   ├── Analytics.tsx
+│   │   ├── Cart.tsx
+│   │   ├── Categories.tsx
+│   │   ├── CheckoutPage.tsx
+│   │   ├── CheckoutSuccess.tsx
+│   │   ├── Checkout.tsx
+│   │   ├── Customers.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── Home.tsx
+│   │   ├── NotFound.tsx
+│   │   ├── Orders.tsx
+│   │   ├── ProductDetail.tsx
+│   │   └── Products.tsx
+│   ├── routes
+│   │   └── reviewRoutes.ts
+│   ├── styles
+│   │   └── globals.css
+│   ├── types
+│   │   ├── ProductTypes.ts
+│   │   └── wishlist.types.ts
+│   ├── utils
+│   │   ├── apiClient.ts
+│   │   ├── authApi.ts
+│   │   ├── customerApi.ts
+│   │   ├── index.ts
+│   │   └── wishlistApi.ts
+│   └── vite-env.d.ts
+├── tailwind.config.js
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+26 directories, 104 files

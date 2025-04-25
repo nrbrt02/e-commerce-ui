@@ -1,87 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface HeroBannerProps {
-  title?: string;
-  subtitle?: string;
-  discount?: string;
-  image?: string;
-  ctaText?: string;
+  slides?: Array<{
+    title: string;
+    subtitle: string;
+    discount: string;
+    image: string;
+    ctaText: string;
+    ctaLink?: string;
+  }>;
 }
 
 const HeroBanner: React.FC<HeroBannerProps> = ({
-  title = "SMART WEARABLE",
-  subtitle = "Best Deal Online on smart watches",
-  discount = "UP to 80% OFF",
-  image = "https://unsplash.com/photos/black-chronograph-watch-V2owNGx837Q",
-  ctaText = "Shop Now"
+  slides = [
+    {
+      title: "SMART WEARABLE",
+      subtitle: "Best Deal Online on smart watches",
+      discount: "UP to 80% OFF",
+      image: "https://plus.unsplash.com/premium_photo-1710708048482-2e07e963bc65?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8U01BUlQlMjBXRUFSQUJMRXxlbnwwfHwwfHx8MA%3D%3D",
+      ctaText: "Shop Now",
+      ctaLink: "/category/wearables"
+    },
+    {
+      title: "PREMIUM SMARTPHONES",
+      subtitle: "Latest Models at Unbeatable Prices",
+      discount: "UP to 50% OFF",
+      image: "https://images.unsplash.com/photo-1672413514634-4781b15fd89e?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c21hcnRwaG9uZXN8ZW58MHx8MHx8fDA%3D",
+      ctaText: "Explore Now",
+      ctaLink: "/category/smartphones"
+    },
+    {
+      title: "GAMING LAPTOPS",
+      subtitle: "Ultimate Performance for Gamers",
+      discount: "From Rwf1599900 Only",
+      image: "https://images.unsplash.com/photo-1589913649361-56d3f8762bc7?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8Z2FtbWluZyUyMGxhcHRvcHxlbnwwfHwwfHx8MA%3D%3D",
+      ctaText: "View Collection",
+      ctaLink: "/category/laptops"
+    },
+    {
+      title: "WIRELESS EARBUDS",
+      subtitle: "Premium Sound Quality",
+      discount: "Starting at Rwf59000",
+      image: "https://images.unsplash.com/photo-1667178173387-7e0cb51c0b4f?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8V0lSRUxFU1MlMjBFQVJCVURTfGVufDB8fDB8fHww",
+      ctaText: "Buy Now",
+      ctaLink: "/category/audio"
+    },
+    {
+      title: "SMART HOME DEVICES",
+      subtitle: "Transform Your Living Space",
+      discount: "UP to 40% OFF",
+      image: "https://images.unsplash.com/photo-1730967844913-29eb5cae5f34?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8U01BUlQlMjBIT01FJTIwREVWSUNFU3xlbnwwfHwwfHx8MA%3D%3D",
+      ctaText: "Discover More",
+      ctaLink: "/category/smart-home"
+    }
+  ]
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const totalSlides = 5;
+  const [isAnimating, setIsAnimating] = useState(false);
+  const totalSlides = slides.length;
+
+  // Auto-rotate slides
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isAnimating) {
+        nextSlide();
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isAnimating]);
 
   const nextSlide = () => {
+    setIsAnimating(true);
     setCurrentSlide((prev) => (prev === totalSlides - 1 ? 0 : prev + 1));
+    setTimeout(() => setIsAnimating(false), 500);
   };
 
   const prevSlide = () => {
+    setIsAnimating(true);
     setCurrentSlide((prev) => (prev === 0 ? totalSlides - 1 : prev - 1));
+    setTimeout(() => setIsAnimating(false), 500);
   };
 
+  const goToSlide = (index: number) => {
+    if (currentSlide !== index) {
+      setIsAnimating(true);
+      setCurrentSlide(index);
+      setTimeout(() => setIsAnimating(false), 500);
+    }
+  };
+
+  const currentSlideData = slides[currentSlide];
+
   return (
-    <div className="relative bg-gradient-to-r from-sky-800 to-sky-900 rounded-xl overflow-hidden mb-8 shadow-lg">
-      {/* Navigation Arrows */}
-      <button 
-        onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-sky-500"
-        aria-label="Previous slide"
-      >
-        <i className="fas fa-chevron-left text-sky-700 text-lg"></i>
-      </button>
-      <button 
-        onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-sky-500"
-        aria-label="Next slide"
-      >
-        <i className="fas fa-chevron-right text-sky-700 text-lg"></i>
-      </button>
-      
-      <div className="flex flex-col md:flex-row p-6 md:p-10 lg:p-12">
-        <div className="w-full md:w-3/5 text-white order-2 md:order-1">
-          <p className="text-sm md:text-base font-medium mb-1 text-sky-200 animate-fadeIn">
-            {subtitle}
-          </p>
-          <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-5 animate-fadeIn delay-100">
-            {title}
-          </h2>
-          <p className="text-lg md:text-xl lg:text-2xl font-bold text-sky-100 mb-4 md:mb-6 animate-fadeIn delay-200">
-            {discount}
-          </p>
-          
-          <button 
-            className="px-6 py-2.5 bg-white text-sky-700 font-semibold rounded-lg hover:bg-sky-100 transition-all duration-300 hover:shadow-md animate-fadeIn delay-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-sky-800"
-          >
-            {ctaText}
-            <i className="fas fa-arrow-right ml-2"></i>
-          </button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+      <div className="relative bg-gradient-to-r from-sky-700 to-sky-900 rounded-xl overflow-hidden shadow-xl flex flex-col md:flex-row">
+        {/* Navigation Arrows */}
+        <button 
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/70 p-2 rounded-full shadow-md hover:bg-white transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          aria-label="Previous slide"
+          disabled={isAnimating}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button 
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/70 p-2 rounded-full shadow-md hover:bg-white transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          aria-label="Next slide"
+          disabled={isAnimating}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        
+        {/* Left Image Section - No margins, fills left side completely */}
+        <div className="w-full md:w-2/5 h-56 md:h-auto bg-sky-800/40 overflow-hidden">
+          <img 
+            src={currentSlideData.image} 
+            alt={currentSlideData.title}
+            className="h-full w-full object-cover transition-all duration-500"
+          />
+        </div>
+        
+        {/* Right Content Section */}
+        <div className="w-full md:w-3/5 p-6 md:p-8 lg:p-10 flex flex-col justify-center">
+          <div className={`text-white transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+            <p className="text-sm md:text-base font-medium mb-1 text-sky-200">
+              {currentSlideData.subtitle}
+            </p>
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-5">
+              {currentSlideData.title}
+            </h2>
+            <p className="text-lg md:text-xl lg:text-2xl font-bold text-sky-100 mb-4 md:mb-6">
+              {currentSlideData.discount}
+            </p>
+            
+            <a 
+              href={currentSlideData.ctaLink}
+              className="inline-flex items-center px-6 py-2.5 bg-white text-sky-700 font-semibold rounded-lg hover:bg-sky-100 transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-sky-800"
+            >
+              {currentSlideData.ctaText}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </a>
+          </div>
           
           {/* Banner navigation dots */}
-          <div className="mt-6 md:mt-8 flex space-x-2 animate-fadeIn delay-400">
-            {Array(totalSlides).fill(0).map((_, i) => (
+          <div className="mt-6 md:mt-8 flex space-x-2">
+            {slides.map((_, i) => (
               <button 
                 key={i}
-                onClick={() => setCurrentSlide(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-6 bg-white' : 'w-2 bg-sky-500/50 hover:bg-sky-400'}`}
+                onClick={() => goToSlide(i)}
+                className={`h-2 rounded-full transition-all duration-300 focus:outline-none ${i === currentSlide ? 'w-6 bg-white' : 'w-2 bg-sky-400/50 hover:bg-sky-300'}`}
                 aria-label={`Go to slide ${i + 1}`}
+                disabled={isAnimating}
               ></button>
             ))}
           </div>
-        </div>
-        
-        <div className="w-full md:w-2/5 flex justify-center items-center order-1 md:order-2 mb-4 md:mb-0">
-          <img 
-            src={image} 
-            alt={title} 
-            className="max-h-40 md:max-h-56 lg:max-h-64 object-contain animate-fadeIn delay-200 hover:scale-105 transition-transform duration-500"
-          />
         </div>
       </div>
     </div>

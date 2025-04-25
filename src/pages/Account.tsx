@@ -1,11 +1,13 @@
 // src/pages/Account.tsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AuthPage from '../components/auth/AuthPage';
 import { useAuth } from '../context/AuthContext';
-import { customerAPI } from '../utils/apiClient';
+import customerAPI from "../utils/customerApi"
 import CustomerProfile from '../components/account/CustomerProfile';
 import UpdatePassword from '../components/account/UpdatePassword';
+import AddressManagement from '../components/account/AddressManagement';
+// import WishlistComponent from '../components/account/WishlistComponent';
 
 const AccountPage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -13,21 +15,31 @@ const AccountPage: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+  const location = useLocation();
   
-  // Redirect staff/admin users to dashboard
+  // Parse the URL query parameters to get the active tab
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const tabParam = queryParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
+  
   useEffect(() => {
     if (isAuthenticated && user?.isStaff) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, user, navigate]);
   
-  // Fetch customer profile data
   useEffect(() => {
     const fetchProfile = async () => {
       if (isAuthenticated && !user?.isStaff) {
         setIsProfileLoading(true);
         try {
-          const profileData = await customerAPI.getProfile();
+          const response = await customerAPI.getProfile();
+          // Extract profile data from the response based on API structure
+          const profileData = response.data ? response.data.customer : response;
           setProfile(profileData);
         } catch (error) {
           console.error('Error fetching profile:', error);
@@ -40,12 +52,13 @@ const AccountPage: React.FC = () => {
     fetchProfile();
   }, [isAuthenticated, user]);
   
-  // Handle profile update
   const handleProfileUpdated = async () => {
     if (isAuthenticated) {
       setIsProfileLoading(true);
       try {
-        const profileData = await customerAPI.getProfile();
+        const response = await customerAPI.getProfile();
+        // Extract profile data from the response based on API structure
+        const profileData = response.data ? response.data.customer : response;
         setProfile(profileData);
       } catch (error) {
         console.error('Error refreshing profile:', error);
@@ -55,8 +68,21 @@ const AccountPage: React.FC = () => {
     }
   };
   
-  // User Dashboard content based on the active tab
+  // Update URL when tab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    navigate(`/account?tab=${tab}`, { replace: true });
+  };
+  
   const renderTabContent = () => {
+    if (isProfileLoading) {
+      return (
+        <div className="flex justify-center items-center h-48">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-600"></div>
+        </div>
+      );
+    }
+    
     switch (activeTab) {
       case 'profile':
         return profile ? (
@@ -69,6 +95,18 @@ const AccountPage: React.FC = () => {
       
       case 'security':
         return <UpdatePassword />;
+        
+      case 'addresses':
+        return profile ? (
+          <AddressManagement profile={profile} />
+        ) : (
+          <div className="p-6 bg-white rounded-lg shadow">
+            <p className="text-gray-500">Loading addresses...</p>
+          </div>
+        );
+        
+      // case 'wishlist':
+      //   return <WishlistComponent />;
       
       case 'orders':
       default:
@@ -92,7 +130,6 @@ const AccountPage: React.FC = () => {
     }
   };
   
-  // Customer Dashboard component
   const CustomerDashboard = () => (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
       <div className="bg-white shadow-sm rounded-lg p-6">
@@ -110,7 +147,7 @@ const AccountPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-800">
-                    {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : user?.username}
+                    {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : user?.username || user?.email?.split('@')[0] || 'User'}
                   </h3>
                   <p className="text-sm text-gray-500">{user?.email}</p>
                 </div>
@@ -118,7 +155,7 @@ const AccountPage: React.FC = () => {
               
               <nav className="space-y-1">
                 <button 
-                  onClick={() => setActiveTab('orders')}
+                  onClick={() => handleTabChange('orders')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
                     activeTab === 'orders' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
@@ -129,7 +166,7 @@ const AccountPage: React.FC = () => {
                 </button>
                 
                 <button 
-                  onClick={() => setActiveTab('profile')}
+                  onClick={() => handleTabChange('profile')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
                     activeTab === 'profile' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
@@ -140,7 +177,7 @@ const AccountPage: React.FC = () => {
                 </button>
                 
                 <button 
-                  onClick={() => setActiveTab('security')}
+                  onClick={() => handleTabChange('security')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
                     activeTab === 'security' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
@@ -151,7 +188,7 @@ const AccountPage: React.FC = () => {
                 </button>
                 
                 <button 
-                  onClick={() => setActiveTab('addresses')}
+                  onClick={() => handleTabChange('addresses')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
                     activeTab === 'addresses' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
@@ -162,7 +199,7 @@ const AccountPage: React.FC = () => {
                 </button>
                 
                 <button 
-                  onClick={() => setActiveTab('wishlist')}
+                  onClick={() => handleTabChange('wishlist')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
                     activeTab === 'wishlist' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
@@ -177,20 +214,13 @@ const AccountPage: React.FC = () => {
           
           {/* Main content */}
           <div className="md:col-span-2">
-            {isProfileLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-600"></div>
-              </div>
-            ) : (
-              renderTabContent()
-            )}
+            {renderTabContent()}
           </div>
         </div>
       </div>
     </div>
   );
   
-  // Return content directly without wrapping in Layout
   return isLoading ? (
     <div className="flex justify-center items-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-600"></div>

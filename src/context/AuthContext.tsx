@@ -1,6 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { authAPI } from "../utils/apiClient";
+import authApi from "../utils/authApi";
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "../constants/auth-constants";
 
 // Types
 export interface User {
@@ -11,6 +12,8 @@ export interface User {
   lastName?: string | null;
   isStaff?: boolean;
   primaryRole?: string;
+  role?: string; // Support for legacy role property
+  roles?: Array<string | { name: string; permissions?: string[] }>;
   [key: string]: any; // For any additional properties
 }
 
@@ -40,12 +43,6 @@ interface AuthContextType {
   closeAuthModal: () => void;
   setAuthModalView: (view: "login" | "register" | "forgot-password") => void;
 }
-
-// Get environment variables
-const AUTH_TOKEN_KEY =
-  import.meta.env.VITE_AUTH_TOKEN_KEY || "fast_shopping_token";
-const AUTH_USER_KEY =
-  import.meta.env.VITE_AUTH_USER_KEY || "fast_shopping_user";
 
 // Create the auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Helper function to determine primary role and staff status
   const processUserData = (userData: Record<string, any>): User => {
+    console.log("Processing user data:", userData);
+    
     // Start with a base user object
     const processedUser: User = {
       id: userData.id || 0,
@@ -99,14 +98,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       lastName: userData.lastName,
       isStaff: false, // Will be set based on roles
       primaryRole: "customer", // Default role
-      roles: userData.roles || [], // Preserve the roles array
       ...userData,
     };
 
+    // Special case for customer login - set role explicitly if no roles array
+    if (!userData.roles && !userData.role) {
+      processedUser.role = 'customer';
+      processedUser.primaryRole = 'customer';
+      processedUser.isStaff = false;
+      return processedUser;
+    }
+
+    // Preserve original roles array for reference
+    if (userData.roles) {
+      processedUser.roles = userData.roles;
+    }
+
+    // Check for directly assigned role property (some backends may provide this)
+    if (userData.role) {
+      processedUser.role = userData.role;
+      processedUser.primaryRole = userData.role;
+      processedUser.isStaff = userData.role !== "customer";
+      return processedUser;
+    }
+
     // Check if user has roles array
-    if (userData.roles && Array.isArray(userData.roles)) {
+    if (userData.roles && Array.isArray(userData.roles) && userData.roles.length > 0) {
+      console.log("Found roles array:", userData.roles);
+      
       // Get all role names
-      const roleNames = userData.roles.map((role) => role.name.toLowerCase());
+      const roleNames: string[] = userData.roles.map((role) => {
+        if (typeof role === 'string') {
+          return role.toLowerCase();
+        } else if (typeof role === 'object' && role !== null && 'name' in role) {
+          return (role.name as string).toLowerCase();
+        }
+        return '';
+      }).filter(Boolean);
+      
+      console.log("Extracted role names:", roleNames);
 
       // Determine primary role based on hierarchy
       if (roleNames.includes("superadmin")) {
@@ -118,12 +148,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (roleNames.includes("supplier")) {
         processedUser.primaryRole = "supplier";
       }
-      // else remains 'customer'
 
       // Set staff status - anyone with a non-customer role is staff
       processedUser.isStaff = processedUser.primaryRole !== "customer";
+      
+      // Also set the legacy role property for compatibility
+      processedUser.role = processedUser.primaryRole;
     }
 
+    console.log("Processed user:", processedUser);
     return processedUser;
   };
 
@@ -138,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       // Call login API
-      const response = await authAPI.login(email, password, isStaff);
+      const response = await authApi.login(email, password, isStaff);
 
       console.log("Login API response:", response);
 
@@ -148,24 +181,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Store token
       localStorage.setItem(AUTH_TOKEN_KEY, response.token);
-
-      // Extract and process user data - safely access nested properties
-      let userData: Record<string, any> = {};
-      if (response && typeof response === "object") {
-        // Handle different possible response structures
-        if (
-          "data" in response &&
-          response.data &&
-          typeof response.data === "object"
-        ) {
-          if ("user" in response.data) {
-            userData = response.data.user as Record<string, any>;
-          }
-        } else if ("user" in response) {
-          userData = response.user as Record<string, any>;
-        }
+      
+      // If refresh token is provided, store it too
+      if (response.refreshToken) {
+        localStorage.setItem("fast_shopping_refresh_token", response.refreshToken);
       }
 
+      // Extract and process user data from the response
+      let userData: Record<string, any> = {};
+      
+      // Try to extract user data from different response structures
+      if (response.user) {
+        // Direct user property
+        userData = response.user;
+      } else if (response.data && response.data.user) {
+        // Nested user property in data object
+        userData = response.data.user;
+      }
+
+      console.log("Extracted user data:", userData);
+      
       const processedUser = processUserData(userData);
 
       // Store processed user
@@ -196,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       // Call registration API
-      const response = await authAPI.register(data);
+      const response = await authApi.register(data);
 
       // Registration successful, but we don't log in automatically
       console.log("Registration successful");
@@ -204,26 +239,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Try to get the username for logging purposes
       let username = "";
       if (response && typeof response === "object") {
-        if (
-          "data" in response &&
-          response.data &&
-          typeof response.data === "object"
-        ) {
-          if (
-            "user" in response.data &&
-            response.data.user &&
-            typeof response.data.user === "object"
-          ) {
-            const user = response.data.user as Record<string, any>;
-            username = user.username || data.username || data.email;
-          }
-        } else if (
-          "user" in response &&
-          response.user &&
-          typeof response.user === "object"
-        ) {
-          const user = response.user as Record<string, any>;
-          username = user.username || data.username || data.email;
+        if (response.user && typeof response.user === "object") {
+          username = response.user.username || data.username || data.email;
+        } else if (response.data && response.data.user && typeof response.data.user === "object") {
+          username = response.data.user.username || data.username || data.email;
         }
       }
 
@@ -247,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem("fast_shopping_refresh_token"); // Clear refresh token too
     setUser(null);
     setIsAuthenticated(false);
   };

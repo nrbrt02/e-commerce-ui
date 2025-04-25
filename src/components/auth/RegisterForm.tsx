@@ -217,7 +217,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         </div>
         
         {/* User type selection */}
-        <div className="mb-4">
+        {/* <div className="mb-4">
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -236,7 +236,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
               Register as Supplier
             </label>
           </div>
-        </div>
+        </div> */}
         
         {/* Submit button */}
         <button

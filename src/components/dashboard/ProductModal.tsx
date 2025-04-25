@@ -303,7 +303,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
   // Submit the form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     // Validate form first
     if (!validateForm()) {
       // Show error message and highlight the correct tab
@@ -325,17 +325,17 @@ const ProductModal: React.FC<ProductModalProps> = ({
       }
       return;
     }
-
+  
     setIsLoading(true);
     setError(null);
-
+  
     try {
       const token = localStorage.getItem("token");
       const headers = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-
+  
       // Prepare the product data for submission
       const productPayload = {
         name: formData.name,
@@ -356,10 +356,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
         tags: formData.tags,
         categoryIds: formData.categoryIds,
         images: formData.imageUrls?.map((url) => ({ url })),
+        supplierId: formData.supplierId, // Include supplierId in the payload
       };
-
+  
       let savedProduct;
-
+  
       if (mode === "create") {
         const response = await axios.post(
           `${API_BASE_URL}/products`,
@@ -376,7 +377,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         );
         savedProduct = response.data.data;
       }
-
+  
       onProductSaved(savedProduct);
     } catch (err: any) {
       console.error("Error saving product:", err);

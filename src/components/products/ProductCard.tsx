@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { useAuth } from '../../context/AuthContext';
+import { showToast } from '../../components/ui/ToastProvider';
+import wishlistApi from '../../utils/wishlistApi';
 
 interface ProductImage {
   url: string;
@@ -65,7 +69,18 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { user, openAuthModal } = useAuth();
   const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [isAddedToWishlist, setIsAddedToWishlist] = useState(false);
+  
+  // Initialize wishlist status on component mount and when product changes
+  useEffect(() => {
+    if (product) {
+      setIsAddedToWishlist(isInWishlist(product.id.toString()));
+    }
+  }, [product, isInWishlist]);
   
   // Get the first valid image URL
   const getFirstImageUrl = (imageUrls: string[]): string => {
@@ -152,6 +167,107 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       setTimeout(() => {
         setIsAddedToCart(false);
       }, 2000);
+      
+      // Show success toast
+      showToast.success(`${product.name} added to cart`);
+    }
+  };
+
+  // Handle add to wishlist - improved version based on ProductDetail.tsx implementation
+  const handleToggleWishlist = async () => {
+    if (!product) return;
+    
+    // If user is not logged in, open auth modal
+    if (!user) {
+      openAuthModal("login");
+      return;
+    }
+    
+    setWishlistLoading(true);
+    
+    // Debug auth status
+    const token = localStorage.getItem("fast_shopping_token");
+    console.log("Auth status before wishlist action:", {
+      token: token ? "Present" : "Missing",
+      tokenLength: token?.length || 0,
+      isAuthenticated: !!user,
+      userExists: !!user,
+      userId: user?.id,
+    });
+    
+    try {
+      if (isAddedToWishlist) {
+        // Remove from wishlist
+        const success = await removeFromWishlist(product.id.toString());
+        if (success) {
+          setIsAddedToWishlist(false);
+          showToast.info(`${product.name} removed from wishlist`);
+        } else {
+          throw new Error("Failed to remove from wishlist");
+        }
+      } else {
+        // Add to wishlist
+        // First get or create default wishlist
+        let wishlistId;
+        
+        try {
+          // Try to get wishlists
+          const wishlists = await wishlistApi.getWishlists();
+          if (
+            wishlists &&
+            wishlists.data &&
+            wishlists.data.wishlists &&
+            wishlists.data.wishlists.length > 0
+          ) {
+            // Use the first wishlist
+            wishlistId = wishlists.data.wishlists[0].id;
+          } else {
+            // Create a new wishlist if none exists
+            const newWishlist = await wishlistApi.createWishlist({
+              name: "My Wishlist",
+              isPublic: false,
+            });
+            wishlistId = newWishlist.data.wishlist.id;
+          }
+        } catch (error) {
+          console.error("Error getting/creating wishlist:", error);
+          // Fallback to default wishlist
+          wishlistId = "default";
+        }
+        
+        // Now add the product to the wishlist
+        await wishlistApi.addProductToWishlist(wishlistId, {
+          productId: product.id,
+        });
+        
+        // Add to local state
+        const imageUrl = getFirstImageUrl(product.imageUrls);
+        
+        addToWishlist({
+          id: product.id.toString(),
+          name: product.name,
+          slug: product.id.toString(), // Using ID as slug if not available
+          price: parseFloat(product.price),
+          image: imageUrl,
+          inStock: product.quantity > 0,
+          category: product.categories && product.categories.length > 0 ? product.categories[0].name : undefined,
+          discount: calculateDiscount(product.price, product.compareAtPrice)
+        });
+        
+        setIsAddedToWishlist(true);
+        showToast.success(`${product.name} added to wishlist`);
+        
+        // Show a wishlist message in the UI if needed
+        // This part is optional and can be customized based on your UI requirements
+      }
+    } catch (error) {
+      console.error("Error updating wishlist:", error);
+      showToast.error(`Failed to update wishlist: ${error instanceof Error ? error.message : "Unknown error"}`);
+      
+      // Show error message to user
+      // You could implement a toast or some other feedback mechanism here
+    } finally {
+      setWishlistLoading(false);
     }
   };
   
@@ -255,24 +371,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </button>
         )}
         
-        <button className="p-2 border border-gray-300 hover:border-sky-600 rounded group-hover:border-sky-600 transition-colors duration-200 flex-shrink-0">
-          <svg 
-            className="h-5 w-5 text-gray-600 group-hover:text-sky-600 transition-colors duration-200" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-            />
-          </svg>
+        {/* Wishlist button - improved version based on ProductDetail.tsx implementation */}
+        <button 
+          onClick={handleToggleWishlist}
+          disabled={wishlistLoading}
+          className={`p-2 border rounded transition-colors duration-200 flex-shrink-0 ${
+            isAddedToWishlist 
+              ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-500" 
+              : "border-gray-300 hover:border-sky-600 text-gray-600 hover:text-sky-600"
+          } ${
+            wishlistLoading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={isAddedToWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+        >
+          {wishlistLoading ? (
+            <i className="fas fa-spinner fa-spin"></i>
+          ) : (
+            <i className={`${isAddedToWishlist ? "fas" : "far"} fa-heart`}></i>
+          )}
         </button>
       </div>
     </div>
   );
 };
 
-export default ProductCard; 
+export default ProductCard;

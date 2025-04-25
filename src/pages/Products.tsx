@@ -45,24 +45,24 @@ const Products: React.FC = () => {
   const [resultsPerPage, setResultsPerPage] = useState(10);
   const [totalProducts, setTotalProducts] = useState(0);
 
-  // Improved hasRole function
   const hasRole = (roleName: string) => {
-    // Check primaryRole first
     if (user?.primaryRole === roleName) return true;
 
-    // Check legacy role property
     if (user?.role === roleName) return true;
 
-    // Check roles array if it exists
     if (user?.roles) {
-      // For array of strings
       if (Array.isArray(user.roles) && typeof user.roles[0] === "string") {
         return user.roles.includes(roleName);
       }
 
-      // For array of objects with name property
       if (Array.isArray(user.roles) && typeof user.roles[0] === "object") {
-        return user.roles.some((role) => role.name === roleName);
+        return user.roles.some((role: string | { name: string }) => {
+          if (typeof role === "string") {
+            return role === roleName;
+          } else {
+            return role.name === roleName;
+          }
+        });
       }
     }
 
@@ -72,7 +72,8 @@ const Products: React.FC = () => {
   // Make role checks mutually exclusive
   const isAdmin = hasRole("admin");
   const isManager = !isAdmin && hasRole("manager");
-  const isSupplier = !isAdmin && !isManager && hasRole("supplier");
+  const isSuperAdmin = !isAdmin && !isManager && hasRole("superadmin");
+  // const isSupplier = !isAdmin && !isManager && hasRole("supplier");
 
   // Fetch products data
   const fetchProducts = async () => {
@@ -434,7 +435,7 @@ const Products: React.FC = () => {
           </h1>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {(isAdmin || isManager || isSupplier) && (
+            {(isSuperAdmin || isAdmin) && (
               <button
                 onClick={openCreateModal}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"

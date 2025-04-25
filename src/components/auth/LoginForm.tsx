@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -16,9 +17,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
   const [password, setPassword] = useState('');
   const [isStaff, setIsStaff] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +39,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       setEmail('');
       setPassword('');
       
-      // Add a small delay to ensure state changes have propagated
       setTimeout(() => {
-        // Navigation will be handled automatically by AuthContext
-        // If they are staff/admin, they will be redirected to dashboard
         if (isStaff) {
           navigate('/dashboard');
         }
@@ -99,17 +102,35 @@ const LoginForm: React.FC<LoginFormProps> = ({
               Forgot password?
             </button>
           </div>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
-                     focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="••••••••"
-            required
-            disabled={isSubmitting}
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder="••••••••"
+              required
+              disabled={isSubmitting}
+            />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-sky-600"
+              tabIndex={-1}
+              disabled={isSubmitting}
+            >
+              {showPassword ? (
+                <EyeOffIcon className="w-5 h-5" aria-hidden="true" />
+              ) : (
+                <EyeIcon className="w-5 h-5" aria-hidden="true" />
+              )}
+              <span className="sr-only">
+                {showPassword ? 'Hide password' : 'Show password'}
+              </span>
+            </button>
+          </div>
         </div>
         
         {/* User type selector */}
