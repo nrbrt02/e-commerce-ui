@@ -25,7 +25,7 @@ const ProductInfoTabs: React.FC<ProductInfoTabsProps> = ({
         : product.metadata;
 
       return Object.entries(metadata)
-        .filter(([key, value]) => typeof value !== "object")
+        .filter(([value]) => typeof value !== "object")
         .map(([key, value]) => ({
           name: key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase()),
           value: value?.toString() || "",
@@ -47,9 +47,9 @@ const ProductInfoTabs: React.FC<ProductInfoTabsProps> = ({
 
       // Filter out specifications from metadata
       return Object.entries(metadata)
-        .filter(([key]) => key.toLowerCase().includes("spec") || key.toLowerCase().includes("technical"))
-        .reduce((acc, [key, value]) => {
-          acc[key] = value;
+        .filter(([specKey]) => specKey.toLowerCase().includes("spec") || specKey.toLowerCase().includes("technical"))
+        .reduce((acc, [specKey, value]) => {
+          acc[specKey] = value;
           return acc;
         }, {} as Record<string, any>);
     } catch (error) {

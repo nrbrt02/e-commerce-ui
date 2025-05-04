@@ -23,17 +23,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const pathParts = location.pathname.split("/");
     if (pathParts.length > 2) {
       setActiveSection(pathParts[2]);
-    }
-  }, [location]);
-
-  useEffect(() => {
-    const pathParts = location.pathname.split("/");
-    if (pathParts.length > 2) {
-      setActiveSection(pathParts[2]);
     } else {
       setActiveSection(null);
     }
   }, [location]);
+
   // Close sidebar when clicking a link (mobile)
   const handleNavigation = () => {
     if (window.innerWidth < 768) onClose();
@@ -66,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   return (
     <>
-      {/* Overlay with fade-in animation */}
+      {/* Overlay with fade-in animation (mobile only) */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -84,51 +78,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         initial={{ x: -320 }}
         animate={{ x: isOpen ? 0 : -320 }}
         transition={{ type: "spring", damping: 25 }}
-        className={`fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-gray-900 shadow-2xl border-r border-gray-100 dark:border-gray-800`}
+        className={`fixed md:sticky top-0 inset-y-0 left-0 z-40 w-72 md:w-72 bg-white dark:bg-gray-900 shadow-2xl border-r border-gray-100 dark:border-gray-800 h-screen md:translate-x-0 ${
+          isOpen ? "" : "-translate-x-full md:translate-x-0"
+        }`}
       >
-        {/* Header with close button (mobile) */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-xl font-bold text-sky-600 dark:text-sky-400">
-            Fast Shopping
-          </h2>
-          <button
-            onClick={onClose}
-            className="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+        
 
         {/* User Profile Card */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
           <div className="bg-sky-100 dark:bg-sky-900 text-sky-600 dark:text-sky-300 rounded-full h-10 w-10 flex items-center justify-center font-medium">
-            {user?.name?.charAt(0).toUpperCase() || "U"}
+            {user?.firstName?.[0] || user?.username?.[0] || user?.name?.[0] || "U"}
           </div>
           <div>
             <p className="font-medium text-gray-800 dark:text-gray-100 truncate">
-              {user?.name || "User"}
+              {user?.firstName || user?.username || user?.name || "User"}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-              {user?.primaryRole || "user"}
+              {user?.primaryRole || user?.role || "user"}
             </p>
           </div>
         </div>
 
         {/* Sidebar Navigation */}
-        <div className="overflow-y-auto h-[calc(100%-7.5rem)] py-2 custom-scrollbar">
+        <div className="overflow-y-auto h-[calc(100vh-7.5rem)] py-2 custom-scrollbar">
           <ul className="space-y-1">
             {/* Dashboard */}
             <li>

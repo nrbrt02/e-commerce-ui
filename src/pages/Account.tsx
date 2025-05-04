@@ -17,7 +17,7 @@ const AccountPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Parse the URL query parameters to get the active tab
+  
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const tabParam = queryParams.get('tab');
@@ -26,10 +26,12 @@ const AccountPage: React.FC = () => {
     }
   }, [location.search]);
   
+  // Fix: Only redirect staff users to dashboard, do not redirect non-authenticated users
   useEffect(() => {
     if (isAuthenticated && user?.isStaff) {
       navigate('/dashboard');
     }
+    // We're no longer redirecting non-authenticated users away from this page
   }, [isAuthenticated, user, navigate]);
   
   useEffect(() => {

@@ -33,17 +33,28 @@ const LoginForm: React.FC<LoginFormProps> = ({
     
     try {
       console.log('Attempting login with:', { email, password, isStaff });
-      await login(email, password, isStaff);
+      // Wait for the login to complete - now using boolean return value
+      const isSuccess = await login(email, password, isStaff);
       
       // Clear form
       setEmail('');
       setPassword('');
       
-      setTimeout(() => {
-        if (isStaff) {
-          navigate('/dashboard');
-        }
-      }, 100);
+      // Only navigate if login was successful
+      if (isSuccess) {
+        console.log('Login successful, navigating user based on role');
+        
+        // Using setTimeout to ensure state updates have propagated
+        setTimeout(() => {
+          if (isStaff) {
+            console.log('Navigating staff user to dashboard');
+            navigate('/dashboard');
+          } else {
+            console.log('Navigating regular user to account page');
+            navigate('/account');
+          }
+        }, 500); // Increased timeout to give more time for auth state to update
+      }
     } catch (err) {
       // Error handling is done by AuthContext
       console.error('Login failed:', err);

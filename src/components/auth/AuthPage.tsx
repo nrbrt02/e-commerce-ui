@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+// src/components/auth/AuthPage.tsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import ForgotPasswordForm from './ForgotPassword';
+import { useAuth } from '../../context/AuthContext';
 
 enum AuthMode {
   LOGIN = 'login',
@@ -11,6 +14,22 @@ enum AuthMode {
 
 const AuthPage: React.FC = () => {
   const [authMode, setAuthMode] = useState<AuthMode>(AuthMode.LOGIN);
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('AuthPage: User is already authenticated, redirecting');
+      if (user?.isStaff) {
+        console.log('AuthPage: Redirecting staff user to dashboard');
+        navigate('/dashboard');
+      } else {
+        console.log('AuthPage: Redirecting regular user to account');
+        navigate('/account');
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Function to switch between auth modes
   const switchAuthMode = (mode: AuthMode) => {
@@ -55,7 +74,9 @@ const AuthPage: React.FC = () => {
           <p className="text-gray-600 mt-2">Your one-stop shop for the best deals</p>
         </div>
         
-        {renderAuthForm()}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          {renderAuthForm()}
+        </div>
       </div>
     </div>
   );

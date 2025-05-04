@@ -1,13 +1,14 @@
 .
 ├── dir.txt
 ├── dist
+│   ├── apr-25-2025-dist.zip
 │   ├── assets
-│   │   ├── index-BuSQZGLF.js
-│   │   └── index-DjEX3eaW.css
-│   ├── dist.zip
+│   │   ├── index-DGJIBDOI.js
+│   │   └── index-nR3E8k_s.css
 │   ├── index.html
 │   └── vite.svg
 ├── eslint.config.js
+├── force-build.sh
 ├── index.html
 ├── package.json
 ├── package-lock.json
@@ -35,8 +36,17 @@
 │   │   ├── cart
 │   │   │   └── CartDropdown.tsx
 │   │   ├── checkout
+│   │   │   ├── AddressForm.tsx
+│   │   │   ├── CardPaymentForm.tsx
 │   │   │   ├── CheckoutPage.tsx
+│   │   │   ├── CheckoutProgress.tsx
+│   │   │   ├── DeliveryOptions.tsx
+│   │   │   ├── EmptyCart.tsx
 │   │   │   ├── index.ts
+│   │   │   ├── OrderComplete.tsx
+│   │   │   ├── OrderReview.tsx
+│   │   │   ├── OrderSummary.tsx
+│   │   │   ├── PaymentMethods.tsx
 │   │   │   └── PayPalPayment.tsx
 │   │   ├── dashboard
 │   │   │   ├── CategoryModal.tsx
@@ -83,8 +93,6 @@
 │   │   ├── AuthContext.tsx
 │   │   ├── CartContext.tsx
 │   │   └── WishlistContext.tsx
-│   ├── controllers
-│   │   └── reviewStatsController.ts
 │   ├── data
 │   │   └── sampleProducts.ts
 │   ├── env.d.ts
@@ -109,11 +117,10 @@
 │   │   ├── Orders.tsx
 │   │   ├── ProductDetail.tsx
 │   │   └── Products.tsx
-│   ├── routes
-│   │   └── reviewRoutes.ts
 │   ├── styles
 │   │   └── globals.css
 │   ├── types
+│   │   ├── express.d.ts
 │   │   ├── ProductTypes.ts
 │   │   └── wishlist.types.ts
 │   ├── utils
@@ -129,4 +136,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-26 directories, 104 files
+24 directories, 113 files

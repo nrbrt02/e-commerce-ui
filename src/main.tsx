@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/globals.css';
 import axios from 'axios';
+import AppProviders from './AppProviders';
+
 
 // Get environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -27,6 +29,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEBUGGING === 'true') {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AppProviders>
+      <App />
+    </AppProviders>
   </React.StrictMode>
 );

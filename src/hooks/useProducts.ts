@@ -46,11 +46,20 @@ export interface Category {
   updatedAt: string;
 }
 
+export interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+}
+
 export interface ApiProduct {
   id: number;
   name: string;
   description: string;
   shortDescription: string;
+  descriptionHtml?: string; // Adding the missing property
   sku: string;
   barcode: string;
   price: string;
@@ -71,6 +80,9 @@ export interface ApiProduct {
   updatedAt: string;
   supplier: Supplier;
   categories: Category[];
+  rating?: number; // Adding the missing property
+  reviewCount?: number; // Adding the missing property
+  brand?: Brand; // Adding brand property for the brand name reference
 }
 
 // Hook return type

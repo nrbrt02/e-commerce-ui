@@ -35,7 +35,7 @@ interface AuthContextType {
   error: string | null;
   isAuthModalOpen: boolean;
   authModalView: "login" | "register" | "forgot-password";
-  login: (email: string, password: string, isStaff?: boolean) => Promise<void>;
+  login: (email: string, password: string, isStaff?: boolean) => Promise<boolean>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
@@ -160,12 +160,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return processedUser;
   };
 
-  // Login function
+  // Login function - return boolean to indicate success/failure
   const login = async (
     email: string,
     password: string,
     isStaff: boolean = false
-  ) => {
+  ): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
@@ -210,6 +210,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(processedUser);
       setIsAuthenticated(true);
       setIsAuthModalOpen(false);
+
+      // Return success
+      return true;
     } catch (err: any) {
       console.error("Login error:", err);
       const errorMessage =
@@ -218,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         err.message ||
         "Failed to login. Please check your credentials.";
       setError(errorMessage);
-      throw err;
+      return false;
     } finally {
       setIsLoading(false);
     }

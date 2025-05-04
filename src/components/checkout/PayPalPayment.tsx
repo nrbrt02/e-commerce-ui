@@ -1,99 +1,104 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 
-// Define props interface
 interface PayPalPaymentProps {
+  clientId: string;
   amount: number;
+  itemCount: number;
   onSuccess: (details: any) => void;
   onError: (error: any) => void;
   onCancel: () => void;
 }
 
-export const PayPalPayment: React.FC<PayPalPaymentProps> = ({ 
-  amount, 
-  onSuccess, 
-  onError, 
-  onCancel 
+declare global {
+  interface Window {
+    paypal?: any;
+  }
+}
+
+const PayPalPayment: React.FC<PayPalPaymentProps> = ({
+  clientId,
+  amount,
+  itemCount,
+  onSuccess,
+  onError,
+  onCancel
 }) => {
-  const paypalRef = useRef<HTMLDivElement>(null);
-  const scriptLoaded = useRef(false);
-
-  // Get PayPal client ID from environment variables in Vite
-  // Note: In Vite, we use import.meta.env instead of process.env
-  const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'sb'; // 'sb' is sandbox mode client ID
-
   useEffect(() => {
-    // Avoid loading the script multiple times
-    if (scriptLoaded.current) return;
+    // Only load PayPal script if it's not already loaded
+    if (window.paypal) {
+      renderPayPalButton();
+      return;
+    }
     
-    const loadPayPalScript = async () => {
-      scriptLoaded.current = true;
-      
-      // Load the PayPal SDK script
-      const script = document.createElement('script');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
-      script.async = true;
-      
-      script.onload = () => {
-        if (!paypalRef.current || !(window as any).paypal) return;
-        
-        // Initialize PayPal buttons
-        (window as any).paypal
-          .Buttons({
-            createOrder: (_: any, actions: any) => {
-              return actions.order.create({
-                purchase_units: [
-                  {
-                    amount: {
-                      value: amount.toFixed(2),
-                      currency_code: 'USD'
-                    }
-                  }
-                ]
-              });
-            },
-            onApprove: async (_: any, actions: any) => {
-              try {
-                const details = await actions.order.capture();
-                onSuccess(details);
-              } catch (error) {
-                onError(error);
-              }
-            },
-            onError: (error: any) => {
-              onError(error);
-            },
-            onCancel: () => {
-              onCancel();
-            }
-          })
-          .render(paypalRef.current);
-      };
-      
-      script.onerror = (error) => {
-        console.error('Error loading PayPal script:', error);
-        onError(new Error('Failed to load PayPal SDK'));
-      };
-      
-      document.body.appendChild(script);
+    // Add PayPal SDK script
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
+    script.async = true;
+    script.onload = () => {
+      renderPayPalButton();
+    };
+    script.onerror = () => {
+      console.error('Failed to load PayPal SDK');
+      onError(new Error('Failed to load PayPal SDK'));
     };
     
-    loadPayPalScript();
+    document.body.appendChild(script);
     
     // Cleanup
     return () => {
-      // Remove the script when component unmounts if necessary
-      const paypalScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-      if (paypalScript) {
-        document.body.removeChild(paypalScript);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
       }
     };
-  }, [amount, onSuccess, onError, onCancel, PAYPAL_CLIENT_ID]);
+  }, [clientId, amount]);
+  
+  const renderPayPalButton = () => {
+    if (!window.paypal) return;
+    
+    const paypalButtonContainer = document.getElementById('paypal-button-container');
+    if (!paypalButtonContainer || paypalButtonContainer.children.length > 0) return;
+    
+    window.paypal.Buttons({
+      createOrder: (data: any, actions: any) => {
+        return actions.order.create({
+          purchase_units: [{
+            description: `Your purchase (${itemCount} items)`,
+            amount: {
+              currency_code: 'USD',
+              value: (amount / 100).toFixed(2), // Convert from cents to dollars
+            }
+          }]
+        });
+      },
+      onApprove: (data: any, actions: any) => {
+        return actions.order.capture().then((details: any) => {
+          console.log('PayPal payment successful:', details);
+          onSuccess(details);
+        });
+      },
+      onError: (err: any) => {
+        console.error('PayPal payment error:', err);
+        onError(err);
+      },
+      onCancel: () => {
+        console.log('PayPal payment cancelled');
+        onCancel();
+      }
+    }).render('#paypal-button-container');
+  };
   
   return (
-    <div>
-      <div ref={paypalRef} className="mt-4"></div>
-      <div className="text-sm text-gray-500 mt-2 text-center">
-        Secure payment processing by PayPal
+    <div className="mt-4 border border-gray-200 rounded-md p-4 bg-gray-50">
+      <div className="text-center mb-4">
+        <p className="text-gray-700 mb-2">Click the PayPal button below to complete your payment</p>
+        <p className="text-sm text-gray-500">You will be redirected to PayPal to complete your purchase securely.</p>
+      </div>
+      
+      <div id="paypal-button-container" className="mt-4"></div>
+      
+      <div className="mt-6 text-xs text-gray-500 flex items-center justify-center">
+        <i className="fas fa-lock mr-1"></i>
+        <span>Secure payment processed by PayPal</span>
       </div>
     </div>
   );
