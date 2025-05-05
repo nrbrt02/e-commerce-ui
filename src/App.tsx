@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { CheckoutProvider } from "./context/CheckoutContenxt";
+import { ToastProvider } from "./components/ui/ToastProvider";
 
 // Import components
 import Header from "./components/layout/Header";
@@ -52,6 +53,11 @@ const ProtectedRoute: React.FC<{
 
   // User is authenticated and has proper permissions
   return element;
+};
+
+// Checkout wrapper component to provide CheckoutContext
+const CheckoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <CheckoutProvider>{children}</CheckoutProvider>;
 };
 
 // Frontend layout component
@@ -154,69 +160,82 @@ const AddressBookPage: React.FC = () => {
 // Main App component with nested routes
 const App: React.FC = () => {
   return (
-    <Routes>
-      {/* Dashboard routes with dashboard layout */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute
-            element={<DashboardLayout />}
-            requireAuth={true}
-            requireStaff={true}
+    <ToastProvider>
+      <Routes>
+        {/* Dashboard routes with dashboard layout */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute
+              element={<DashboardLayout />}
+              requireAuth={true}
+              requireStaff={true}
+            />
+          }
+        >
+          <Route index element={<Dashboard />} />
+          {/* Add other dashboard routes here */}
+          <Route path="products" element={<Products />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="orders" element={<Orders />} />
+          {/* Example: <Route path="products" element={<DashboardProducts />} /> */}
+        </Route>
+
+        {/* Frontend routes with frontend layout */}
+        <Route path="/" element={<FrontendLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductGridPage />} />
+          
+          {/* Cart page wrapped with CheckoutProvider */}
+          <Route 
+            path="cart" 
+            element={
+              <CheckoutWrapper>
+                <CartPage />
+              </CheckoutWrapper>
+            } 
           />
-        }
-      >
-        <Route index element={<Dashboard />} />
-        {/* Add other dashboard routes here */}
-        <Route path="products" element={<Products />} />
-        <Route path="categories" element={<Categories />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="orders" element={<Orders />} />
-        {/* Example: <Route path="products" element={<DashboardProducts />} /> */}
-      </Route>
+          
+          <Route path="product/:id" element={<ProductDetail />} />
+          
+          {/* Checkout routes with provider */}
+          <Route
+            path="checkout"
+            element={
+              <CheckoutProvider>
+                <CheckoutPage />
+              </CheckoutProvider>
+            }
+          />
 
-      {/* Frontend routes with frontend layout */}
-      <Route path="/" element={<FrontendLayout />}>
-        <Route index element={<HomePage />} />
-        <Route path="products" element={<ProductGridPage />} />
-        <Route path="cart" element={<CartPage />} />
-        <Route path="product/:id" element={<ProductDetail />} />
-        {/* Checkout routes with provider */}
-        <Route
-          path="checkout"
-          element={
-            <CheckoutProvider>
-              <CheckoutPage />
-            </CheckoutProvider>
-          }
-        />
+          <Route
+            path="checkout/success"
+            element={
+              <CheckoutProvider>
+                <CheckoutSuccess />
+              </CheckoutProvider>
+            }
+          />
 
-        <Route
-          path="checkout/success"
-          element={
-            <CheckoutProvider>
-              <CheckoutSuccess />
-            </CheckoutProvider>
-          }
-        />
+          {/* Modified Account route to not require auth since AuthPage handles showing login */}
+          <Route
+            path="account"
+            element={
+              <ProtectedRoute element={<AccountPage />} requireAuth={false} />
+            }
+          />
 
-        {/* Modified Account route to not require auth since AuthPage handles showing login */}
-        <Route
-          path="account"
-          element={
-            <ProtectedRoute element={<AccountPage />} requireAuth={false} />
-          }
-        />
+          <Route
+            path="account/addresses"
+            element={<ProtectedRoute element={<AddressBookPage />} />}
+          />
+        </Route>
 
-        <Route
-          path="account/addresses"
-          element={<ProtectedRoute element={<AddressBookPage />} />}
-        />
-      </Route>
-
-      {/* Catch-all route redirects to home */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        {/* Catch-all route redirects to home */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </ToastProvider>
   );
 };
 

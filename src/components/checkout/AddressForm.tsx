@@ -1,11 +1,10 @@
 import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCheckout } from "../../context/CheckoutContenxt";
-import { useAuth } from "../../context/AuthContext";
+// import { useAuth } from "../../context/AuthContext";
 
-const AddressForm: React.FC<{
-  onBackToCart: () => void;
-  onNextStep: () => void;
-}> = ({ onBackToCart, onNextStep }) => {
+const AddressForm: React.FC = () => {
+  const navigate = useNavigate();
   const { 
     addressData, 
     handleAddressChange, 
@@ -15,10 +14,12 @@ const AddressForm: React.FC<{
     fetchSavedAddresses,
     loadSavedAddress,
     isAddressValid,
-    addressValidationMessage
+    addressValidationMessage,
+    goToNextStep,
+    validateAddress
   } = useCheckout();
   
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   // Fetch saved addresses if user is authenticated
   useEffect(() => {
@@ -32,6 +33,19 @@ const AddressForm: React.FC<{
     const addressId = parseInt(e.target.value, 10);
     if (addressId > 0) {
       loadSavedAddress(addressId);
+    }
+  };
+
+  // Navigate back to cart
+  const handleBackToCart = () => {
+    navigate('/cart');
+  };
+
+  // Handle continue to next step
+  const handleNextStep = async () => {
+    const isValid = await validateAddress();
+    if (isValid) {
+      goToNextStep();
     }
   };
 
@@ -282,7 +296,7 @@ const AddressForm: React.FC<{
       )}
       <div className="flex justify-between mt-8">
         <button
-          onClick={onBackToCart}
+          onClick={handleBackToCart}
           className="text-sky-600 hover:text-sky-800 flex items-center"
         >
           <i className="fas fa-arrow-left mr-2"></i>
@@ -290,7 +304,7 @@ const AddressForm: React.FC<{
         </button>
 
         <button
-          onClick={onNextStep}
+          onClick={handleNextStep}
           className="bg-sky-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
           disabled={!isAddressValid}
         >

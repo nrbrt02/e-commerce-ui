@@ -1,24 +1,30 @@
-import React, { useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-import { useCheckout } from '../../context/CheckoutContenxt';
-import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
+import React, { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { useCheckout } from "../../context/CheckoutContenxt";
+import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 // Import checkout components
-import CheckoutProgress from './CheckoutProgress';
-import AddressForm from './AddressForm';
-import DeliveryOptions from './DeliveryOptions';
-import OrderSummary from './OrderSummary';
-import PaymentMethods from './PaymentMethods';
-import CardPaymentForm from './CardPaymentForm';
-import PayPalPayment from './PayPalPayment';
-import OrderReview from './OrderReview';
-import OrderComplete from './OrderComplete';
-import EmptyCart from './EmptyCart';
+import CheckoutProgress from "./CheckoutProgress";
+import AddressForm from "./AddressForm";
+import DeliveryOptions from "./DeliveryOptions";
+import OrderSummary from "./OrderSummary";
+import PaymentMethods from "./PaymentMethods";
+import CardPaymentForm from "./CardPaymentForm";
+import PayPalPayment from "./PayPalPayment";
+import OrderReview from "./OrderReview";
+import OrderComplete from "./OrderComplete";
+import EmptyCart from "./EmptyCart";
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  
+
+  // Add the missing state variables
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+
   const {
     activeStep,
     goToNextStep,
@@ -45,31 +51,69 @@ const CheckoutPage: React.FC = () => {
     addressData,
     validatePayment,
     deliveryOptions,
-    selectedShippingMethod
+    selectedShippingMethod,
   } = useCheckout();
-  
+
   const cartContext = useCart();
   const { isAuthenticated } = useAuth();
-  
+
+  // Calculate the total (was missing)
+  const total =
+    totalAmount - (couponApplied ? totalAmount * 0.1 : 0) + shippingCost;
+
+  // Add the missing applyCoupon function
+  const applyCoupon = () => {
+    if (!couponCode.trim()) return;
+
+    setIsLoading(true);
+
+    // Simulate API call to validate coupon
+    setTimeout(() => {
+      if (couponCode.toLowerCase() === "save10") {
+        setCouponApplied(true);
+        // You might want to use a toast notification here
+        alert("Coupon applied successfully!");
+      } else {
+        alert("Invalid coupon code");
+      }
+      setIsLoading(false);
+    }, 800);
+  };
+
+  // Add the missing handleProceedToCheckout function
+  const handleProceedToCheckout = () => {
+    if (cartItems.length === 0) {
+      alert(
+        "Your cart is empty. Please add items before proceeding to checkout."
+      );
+      return;
+    }
+
+    setIsProcessingCheckout(true);
+    // Your checkout logic here
+    // For now, just navigate to the first checkout step
+    navigate("/checkout");
+    setIsProcessingCheckout(false);
+  };
+
   // Display errors when they occur
   useEffect(() => {
     if (errors.length > 0) {
-      // You can use a toast notification library here instead of alert
       alert(errors[0]);
       clearErrors();
     }
   }, [errors, clearErrors]);
-  
+
   // Redirect to cart if cart is empty
   if (cartContext.cartItems.length === 0 && !orderComplete) {
     return <Navigate to="/cart" />;
   }
-  
+
   // Show empty cart component if there are no items
   if (cartItems.length === 0 && !orderComplete) {
     return <EmptyCart />;
   }
-  
+
   // Show order complete page if order is complete
   if (orderComplete && orderDetails) {
     return (
@@ -80,16 +124,16 @@ const CheckoutPage: React.FC = () => {
         shippingCost={shippingCost}
         taxAmount={taxAmount}
         totalOrderAmount={totalOrderAmount}
-        onContinueShopping={() => navigate('/')}
+        onContinueShopping={() => navigate("/")}
       />
     );
   }
-  
+
   // Handle back to cart
   const handleBackToCart = () => {
-    navigate('/cart');
+    navigate("/cart");
   };
-  
+
   // Handle payment submission validation
   const handlePaymentSubmit = async () => {
     const isValid = await validatePayment();
@@ -97,25 +141,27 @@ const CheckoutPage: React.FC = () => {
       goToNextStep();
     }
   };
-  
+
   // Handle final order submission
   const handleSubmitOrder = () => {
     submitOrder()
       .then(() => {
-        navigate('/checkout/success');
+        navigate("/checkout/success");
       })
-      .catch(error => {
-        console.error('Error submitting order:', error);
+      .catch((error) => {
+        console.error("Error submitting order:", error);
       });
   };
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">Checkout</h1>
-      
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+        Checkout
+      </h1>
+
       {/* Checkout progress */}
       <CheckoutProgress activeStep={activeStep} />
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main checkout content */}
         <div className="lg:col-span-2">
@@ -127,16 +173,16 @@ const CheckoutPage: React.FC = () => {
                 onNextStep={goToNextStep}
               />
             )}
-            
+
             {/* Step 2: Shipping Method */}
             {activeStep === 1 && (
               <div className="p-6">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">
                   Shipping Method
                 </h2>
-                
+
                 <DeliveryOptions />
-                
+
                 <div className="flex justify-between mt-8">
                   <button
                     onClick={goToPrevStep}
@@ -145,7 +191,7 @@ const CheckoutPage: React.FC = () => {
                     <i className="fas fa-arrow-left mr-2"></i>
                     Back to Address
                   </button>
-                  
+
                   <button
                     onClick={goToNextStep}
                     className="bg-sky-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
@@ -156,21 +202,21 @@ const CheckoutPage: React.FC = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Step 3: Payment Method */}
             {activeStep === 2 && (
               <div className="p-6">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">
                   Payment Method
                 </h2>
-                
+
                 <PaymentMethods
                   methods={paymentMethods}
                   selectedMethod={selectedPaymentMethod}
                   onSelectMethod={setSelectedPaymentMethod}
                 />
-                
-                {selectedPaymentMethod === 'card' && (
+
+                {selectedPaymentMethod === "card" && (
                   <CardPaymentForm
                     paymentData={paymentData}
                     isAuthenticated={isAuthenticated}
@@ -178,28 +224,33 @@ const CheckoutPage: React.FC = () => {
                     onCheckboxChange={handleCheckboxChange}
                   />
                 )}
-                
-                {selectedPaymentMethod === 'paypal' && (
+
+                {selectedPaymentMethod === "paypal" && (
                   <PayPalPayment
-                    clientId={import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test'} // Use environment variable or fallback
+                    clientId={import.meta.env.VITE_PAYPAL_CLIENT_ID || "test"}
                     amount={totalOrderAmount}
-                    itemCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+                    itemCount={cartItems.reduce(
+                      (sum, item) => sum + item.quantity,
+                      0
+                    )}
                     onSuccess={goToNextStep}
-                    onError={(error) => console.error('PayPal error:', error)}
-                    onCancel={() => console.log('PayPal payment cancelled')}
+                    onError={(error) => console.error("PayPal error:", error)}
+                    onCancel={() => console.log("PayPal payment cancelled")}
                   />
                 )}
-                
-                {(selectedPaymentMethod === 'mobilemoney' || selectedPaymentMethod === 'cod') && (
+
+                {(selectedPaymentMethod === "mobilemoney" ||
+                  selectedPaymentMethod === "cod") && (
                   <div className="mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                      {selectedPaymentMethod === 'mobilemoney' ? (
+                      {selectedPaymentMethod === "mobilemoney" ? (
                         <div>
                           <p className="text-gray-700 mb-2">
                             You'll receive payment instructions on your phone.
                           </p>
                           <p className="text-gray-600 text-sm">
-                            We'll send a payment request to the phone number you provided: <strong>{addressData.phone}</strong>
+                            We'll send a payment request to the phone number you
+                            provided: <strong>{addressData.phone}</strong>
                           </p>
                         </div>
                       ) : (
@@ -208,14 +259,18 @@ const CheckoutPage: React.FC = () => {
                             You'll pay when your order is delivered.
                           </p>
                           <p className="text-gray-600 text-sm">
-                            Please ensure you have the exact amount of <strong>Rwf{totalOrderAmount.toLocaleString()}</strong> ready for our delivery person.
+                            Please ensure you have the exact amount of{" "}
+                            <strong>
+                              Rwf{totalOrderAmount.toLocaleString()}
+                            </strong>{" "}
+                            ready for our delivery person.
                           </p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex justify-between mt-8">
                   <button
                     onClick={goToPrevStep}
@@ -224,7 +279,7 @@ const CheckoutPage: React.FC = () => {
                     <i className="fas fa-arrow-left mr-2"></i>
                     Back to Shipping
                   </button>
-                  
+
                   <button
                     onClick={handlePaymentSubmit}
                     className="bg-sky-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
@@ -234,7 +289,7 @@ const CheckoutPage: React.FC = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Step 4: Order Review */}
             {activeStep === 3 && (
               <OrderReview
@@ -254,7 +309,7 @@ const CheckoutPage: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         {/* Order Summary */}
         <div className="lg:col-span-1">
           <OrderSummary
@@ -263,7 +318,15 @@ const CheckoutPage: React.FC = () => {
             totalSavings={totalSavings}
             shippingCost={shippingCost}
             taxAmount={taxAmount}
-            totalOrderAmount={totalOrderAmount}
+            totalOrderAmount={total}
+            couponCode={couponCode}
+            setCouponCode={setCouponCode}
+            couponApplied={couponApplied}
+            setCouponApplied={setCouponApplied}
+            applyCoupon={applyCoupon}
+            isLoading={isLoading}
+            handleProceedToCheckout={handleProceedToCheckout}
+            isProcessingCheckout={isProcessingCheckout}
           />
         </div>
       </div>

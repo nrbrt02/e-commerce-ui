@@ -2,271 +2,308 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 interface OrderCompleteProps {
-  order: {
-    id?: string | number;
-    orderNumber?: string;
-    status?: string;
-    shippingAddress?: any;
-    shippingMethod?: string;
-    paymentMethod?: string;
-    items?: any[];
-    subtotal?: number;
-    tax?: number;
-    shipping?: number;
-    total?: number;
-    estimatedDelivery?: string;
-    createdAt?: string;
-    [key: string]: any;
-  };
+  order: any;
 }
 
 const OrderComplete: React.FC<OrderCompleteProps> = ({ order }) => {
+  // Check if order exists to prevent errors
+  if (!order) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 text-center">
+        <div className="bg-yellow-100 text-yellow-800 rounded-lg p-4 mb-4">
+          <p className="font-medium">Order information unavailable</p>
+        </div>
+        <Link 
+          to="/" 
+          className="px-6 py-3 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
+        >
+          Return to Home
+        </Link>
+      </div>
+    );
+  }
+  
+  // Format currency in Rwandan Francs
+  const formatCurrency = (amount: number) => {
+    // Check if amount is a valid number, otherwise default to 0
+    const validAmount = isNaN(amount) ? 0 : amount;
+    // Format as Rwandan Francs (RWF) without division by 100
+    return `${validAmount.toLocaleString()} RWF`;
+  };
+  
   // Format date
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return 'N/A';
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Processing';
     
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+  
+  // Get payment status badge
+  const getPaymentStatusBadge = (status: string) => {
+    let bgColor = 'bg-gray-100';
+    let textColor = 'text-gray-800';
+    let icon = 'fa-info-circle';
+    let label = 'Pending';
+    
+    switch (status) {
+      case 'paid':
+        bgColor = 'bg-green-100';
+        textColor = 'text-green-800';
+        icon = 'fa-check-circle';
+        label = 'Paid';
+        break;
+      case 'authorized':
+        bgColor = 'bg-blue-100';
+        textColor = 'text-blue-800';
+        icon = 'fa-check-circle';
+        label = 'Authorized';
+        break;
+      case 'pending':
+        bgColor = 'bg-yellow-100';
+        textColor = 'text-yellow-800';
+        icon = 'fa-clock';
+        label = 'Pending';
+        break;
+      case 'failed':
+        bgColor = 'bg-red-100';
+        textColor = 'text-red-800';
+        icon = 'fa-times-circle';
+        label = 'Failed';
+        break;
+      case 'cancelled':
+        bgColor = 'bg-gray-100';
+        textColor = 'text-gray-800';
+        icon = 'fa-ban';
+        label = 'Cancelled';
+        break;
+      case 'refunded':
+        bgColor = 'bg-purple-100';
+        textColor = 'text-purple-800';
+        icon = 'fa-undo';
+        label = 'Refunded';
+        break;
+    }
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
+        <i className={`fas ${icon} mr-1`}></i>
+        {label}
+      </span>
+    );
+  };
+  
+  // Get payment method icon and text with safe fallbacks
+  const getPaymentMethodInfo = () => {
+    if (!order || !order.paymentMethod) {
+      return {
+        icon: 'fa-money-bill',
+        text: 'Payment'
+      };
+    }
+    
+    switch (order.paymentMethod) {
+      case 'paypal':
+        return {
+          icon: 'fa-paypal',
+          text: 'PayPal'
+        };
+      case 'credit_card':
+        return {
+          icon: 'fa-credit-card',
+          text: 'Credit Card'
+        };
+      case 'bank_transfer':
+        return {
+          icon: 'fa-university',
+          text: 'Bank Transfer'
+        };
+      case 'cash_on_delivery':
+        return {
+          icon: 'fa-money-bill-wave',
+          text: 'Cash on Delivery'
+        };
+      default:
+        return {
+          icon: 'fa-money-bill',
+          text: 'Payment'
+        };
+    }
   };
 
-  // Format currency
-  const formatCurrency = (amount?: number): string => {
-    if (amount === undefined) return 'N/A';
-    
-    return new Intl.NumberFormat('en-RW', {
-      style: 'currency',
-      currency: 'RWF',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
+  const paymentInfo = getPaymentMethodInfo();
+  const paymentStatus = order.paymentStatus || 'pending';
+  
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Success message */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="fas fa-check text-2xl text-green-500"></i>
+    <div className="max-w-3xl mx-auto">
+      {/* Order completed message */}
+      <div className="text-center py-8">
+        <div className="bg-green-100 text-green-800 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+          <i className="fas fa-check-circle text-3xl"></i>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Thank You for Your Order!</h1>
+        <p className="text-gray-600">Your order has been received and is being processed.</p>
+      </div>
+      
+      {/* Order details card */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="flex flex-wrap -mx-3">
+          {/* Order number */}
+          <div className="w-full md:w-1/2 px-3 mb-4">
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Order Number</h3>
+            <p className="text-lg font-bold text-gray-900">{order.orderNumber || 'Processing'}</p>
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h1>
-          <p className="text-gray-600 mb-6">
-            Thank you for your order. We've received your payment and will process your order shortly.
+          {/* Order date */}
+          <div className="w-full md:w-1/2 px-3 mb-4">
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Order Date</h3>
+            <p className="text-lg font-bold text-gray-900">
+              {order.createdAt ? formatDate(order.createdAt) : 'Processing'}
+            </p>
+          </div>
+          
+          {/* Payment method */}
+          <div className="w-full md:w-1/2 px-3 mb-4">
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Payment Method</h3>
+            <p className="flex items-center text-lg font-bold text-gray-900">
+              <i className={`fas ${paymentInfo.icon} mr-2 text-gray-600`}></i>
+              {paymentInfo.text}
+            </p>
+          </div>
+          
+          {/* Payment status */}
+          <div className="w-full md:w-1/2 px-3 mb-4">
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Payment Status</h3>
+            <div className="flex items-center">
+              {getPaymentStatusBadge(paymentStatus)}
+              {paymentStatus === 'pending' && order.paymentMethod === 'bank_transfer' && (
+                <span className="ml-2 text-sm text-gray-600">
+                  Please complete your bank transfer
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* Estimated delivery */}
+          {order.estimatedDelivery && (
+            <div className="w-full px-3 mb-4">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Estimated Delivery</h3>
+              <p className="text-lg font-bold text-gray-900">
+                {formatDate(order.estimatedDelivery)}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Order summary */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
+        
+        {/* Order items */}
+        {order.items && order.items.length > 0 && (
+          <div className="mb-4">
+            <div className="border-b border-gray-200 pb-2 mb-3">
+              <div className="flex justify-between text-sm font-medium text-gray-700">
+                <span>Product</span>
+                <span>Total</span>
+              </div>
+            </div>
+            
+            {order.items.map((item: any, index: number) => (
+              <div key={index} className="flex justify-between py-2 border-b border-gray-100 text-sm">
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{item.name}</p>
+                  <p className="text-gray-600">Qty: {item.quantity}</p>
+                </div>
+                <div className="text-right font-medium text-gray-900">
+                  {formatCurrency(item.price * item.quantity)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Order totals */}
+        <div className="pt-2">
+          <div className="flex justify-between py-2 text-sm text-gray-600">
+            <span>Subtotal</span>
+            <span className="font-medium text-gray-900">{formatCurrency(order.subtotal || 0)}</span>
+          </div>
+          <div className="flex justify-between py-2 text-sm text-gray-600">
+            <span>Shipping</span>
+            <span className="font-medium text-gray-900">{formatCurrency(order.shipping || 0)}</span>
+          </div>
+          <div className="flex justify-between py-2 text-sm text-gray-600">
+            <span>Tax</span>
+            <span className="font-medium text-gray-900">{formatCurrency(order.tax || 0)}</span>
+          </div>
+          <div className="flex justify-between pt-4 border-t border-gray-200 text-lg font-bold">
+            <span>Total</span>
+            <span>{formatCurrency(order.total || 0)}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Next steps */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-8">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">What's Next?</h2>
+        <div className="text-gray-600">
+          <p className="mb-3">
+            We're preparing your order for shipping. You will receive an email confirmation with tracking information once your order has been shipped.
           </p>
           
-          <div className="inline-block bg-gray-100 rounded-lg px-6 py-3 mb-4">
-            <div className="text-left">
-              <p className="text-sm text-gray-500">Order Number</p>
-              <p className="text-lg font-semibold text-gray-900">{order.orderNumber}</p>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              to="/account/orders"
-              className="px-6 py-3 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
-            >
-              <i className="fas fa-file-alt mr-2"></i>
-              View Order
-            </Link>
-            
-            <Link
-              to="/"
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
-            >
-              <i className="fas fa-home mr-2"></i>
-              Continue Shopping
-            </Link>
-          </div>
-        </div>
-        
-        {/* Order details */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Order Details</h2>
-          
-          <div className="space-y-6">
-            {/* Order information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Order Information</h3>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Order Number:</span>
-                      <span className="text-gray-800 font-medium">{order.orderNumber}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Date:</span>
-                      <span className="text-gray-800">{formatDate(order.createdAt)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                        {order.status || 'Processing'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Payment Method:</span>
-                      <span className="text-gray-800">{order.paymentMethod}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Shipping Information</h3>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  {order.shippingAddress ? (
-                    <div className="space-y-1 text-sm">
-                      <p className="text-gray-800">
-                        {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-                      </p>
-                      <p className="text-gray-600">{order.shippingAddress.address}</p>
-                      {order.shippingAddress.address2 && (
-                        <p className="text-gray-600">{order.shippingAddress.address2}</p>
-                      )}
-                      <p className="text-gray-600">
-                        {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
-                      </p>
-                      <p className="text-gray-600">{order.shippingAddress.country}</p>
-                      <p className="text-gray-600">{order.shippingAddress.phone}</p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">Shipping information not available</p>
-                  )}
+          {order.paymentMethod === 'bank_transfer' && paymentStatus === 'pending' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+              <h3 className="text-sm font-medium text-yellow-800 mb-1">Complete Your Payment</h3>
+              <p className="text-sm text-yellow-700 mb-3">
+                Please make your bank transfer using the details below. Your order will be processed once we receive your payment.
+              </p>
+              <div className="bg-white p-3 rounded-md border border-yellow-200 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-gray-500">Bank Name:</div>
+                  <div className="font-medium">Example Bank</div>
                   
-                  {order.estimatedDelivery && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-sm text-gray-600">
-                        <i className="far fa-calendar-alt mr-1"></i>
-                        Estimated delivery: {order.estimatedDelivery}
-                      </p>
-                    </div>
-                  )}
+                  <div className="text-gray-500">Account Name:</div>
+                  <div className="font-medium">Your Store Name</div>
+                  
+                  <div className="text-gray-500">Account Number:</div>
+                  <div className="font-medium">1234567890</div>
+                  
+                  <div className="text-gray-500">Routing Number:</div>
+                  <div className="font-medium">987654321</div>
+                  
+                  <div className="text-gray-500">Reference:</div>
+                  <div className="font-medium">{order.orderNumber}</div>
                 </div>
               </div>
             </div>
-            
-            {/* Order summary */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Order Summary</h3>
-              <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                {/* Order items */}
-                {order.items && order.items.length > 0 ? (
-                  <div className="divide-y divide-gray-200">
-                    {order.items.map((item, index) => (
-                      <div key={index} className="p-4 flex">
-                        {/* Item image */}
-                        <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
-                          {item.image ? (
-                            <img 
-                              src={item.image} 
-                              alt={item.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <i className="fas fa-box"></i>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Item details */}
-                        <div className="ml-4 flex-1">
-                          <h4 className="text-sm font-medium text-gray-800">{item.name}</h4>
-                          <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                          {item.options && Object.keys(item.options).length > 0 && (
-                            <div className="mt-1 text-xs text-gray-500">
-                              {Object.entries(item.options).map(([key, value]) => (
-                                <span key={key}>{key}: {value} </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Item price */}
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-800">
-                            {formatCurrency(item.price * item.quantity)}
-                          </p>
-                          {item.originalPrice && (
-                            <p className="text-xs text-gray-500 line-through">
-                              {formatCurrency(item.originalPrice * item.quantity)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 text-gray-500 text-center">
-                    <p>No items in this order</p>
-                  </div>
-                )}
-                
-                {/* Order totals */}
-                <div className="p-4 bg-white border-t border-gray-200">
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="text-gray-800">{formatCurrency(order.subtotal)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Shipping</span>
-                      <span className="text-gray-800">
-                        {order.shipping === 0 ? 'Free' : formatCurrency(order.shipping)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Tax</span>
-                      <span className="text-gray-800">{formatCurrency(order.tax)}</span>
-                    </div>
-                    
-                    <div className="pt-2 mt-2 border-t border-gray-200">
-                      <div className="flex justify-between font-medium">
-                        <span className="text-gray-800">Total</span>
-                        <span className="text-gray-900">{formatCurrency(order.total)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Next steps */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-              <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-                <i className="fas fa-info-circle mr-2"></i>
-                What's Next?
-              </h3>
-              <ul className="space-y-2 text-sm text-blue-700">
-                <li className="flex">
-                  <i className="fas fa-envelope-open mt-0.5 mr-2"></i>
-                  <span>You'll receive an order confirmation email shortly.</span>
-                </li>
-                <li className="flex">
-                  <i className="fas fa-box mt-0.5 mr-2"></i>
-                  <span>We'll notify you when your order ships.</span>
-                </li>
-                <li className="flex">
-                  <i className="fas fa-question-circle mt-0.5 mr-2"></i>
-                  <span>
-                    For any questions about your order, please contact our support team.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
+          )}
+          
+          <p className="mb-3">
+            If you have any questions about your order, please don't hesitate to contact our customer service team.
+          </p>
         </div>
+      </div>
+      
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-4 justify-center mb-12">
+        <Link 
+          to="/account/orders" 
+          className="px-6 py-3 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 transition-colors duration-200"
+        >
+          View My Orders
+        </Link>
+        <Link 
+          to="/" 
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+        >
+          Continue Shopping
+        </Link>
       </div>
     </div>
   );

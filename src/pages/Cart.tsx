@@ -1,10 +1,14 @@
 // src/pages/Cart.tsx
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useCheckout } from "../context/CheckoutContenxt";
+import { showToast } from "../components/ui/ToastProvider";
 
 const Cart: React.FC = () => {
-  // Use the cart context instead of local state for items
+  const navigate = useNavigate();
+  
+  // Use the cart context for items
   const {
     cartItems,
     updateQuantity,
@@ -14,13 +18,17 @@ const Cart: React.FC = () => {
     totalSavings,
   } = useCart();
 
+  // Use checkout context for creating draft orders
+  const { createDraftOrder } = useCheckout();
+
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
   // Calculate additional values
   const discount = couponApplied ? Math.round(totalAmount * 0.1) : 0; // 10% discount example
-  const shippingCost = totalAmount > 5000 ? 0 : 149; // Free shipping over Rwf5000
+  const shippingCost = 0; // Free shipping for now
   const total = totalAmount - discount + shippingCost;
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -34,8 +42,9 @@ const Cart: React.FC = () => {
     setTimeout(() => {
       if (couponCode.toLowerCase() === "save10") {
         setCouponApplied(true);
+        showToast.success("Coupon applied successfully!");
       } else {
-        alert("Invalid coupon code");
+        showToast.error("Invalid coupon code");
       }
       setIsLoading(false);
     }, 800);
@@ -45,6 +54,46 @@ const Cart: React.FC = () => {
   const handleClearCart = () => {
     if (window.confirm("Are you sure you want to clear your cart?")) {
       clearCart();
+      showToast.info("Cart has been cleared");
+    }
+  };
+
+  // Handle proceed to checkout with draft order creation
+  const handleProceedToCheckout = async () => {
+    if (cartItems.length === 0) {
+      showToast.error("Your cart is empty. Please add items before proceeding to checkout.");
+      return;
+    }
+
+    try {
+      setIsProcessingCheckout(true);
+      
+      // Clear any existing draft order ID from localStorage
+      localStorage.removeItem("checkoutDraftOrderId");
+      
+      // Create a draft order
+      console.log("Creating draft order...");
+      const draftOrder = await createDraftOrder();
+      
+      if (!draftOrder || !draftOrder.id) {
+        throw new Error("Failed to create draft order");
+      }
+      
+      // Ensure the draft order ID is stored in localStorage
+      localStorage.setItem("checkoutDraftOrderId", String(draftOrder.id));
+      console.log("Draft order created and stored:", draftOrder.id);
+      
+      // Wait a moment to ensure localStorage is updated
+      setTimeout(() => {
+        // Navigate to checkout
+        navigate("/checkout");
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error creating draft order:", error);
+      showToast.error("There was an error preparing your checkout. Please try again.");
+    } finally {
+      setIsProcessingCheckout(false);
     }
   };
 
@@ -237,7 +286,7 @@ const Cart: React.FC = () => {
                     <span className="text-gray-600">
                       Subtotal ({itemCount} items)
                     </span>
-                    <span className="text-gray-800">
+                    <span className="text-gray-800 font-medium">
                       Rwf{totalAmount.toLocaleString()}
                     </span>
                   </div>
@@ -258,23 +307,8 @@ const Cart: React.FC = () => {
 
                   <div className="flex justify-between">
                     <span className="text-gray-600">Shipping</span>
-                    <span
-                      className={
-                        shippingCost === 0
-                          ? "text-green-600"
-                          : "text-gray-800"
-                      }
-                    >
-                      {shippingCost === 0 ? "FREE" : `Rwf${shippingCost}`}
-                    </span>
+                    <span className="text-green-600">FREE</span>
                   </div>
-
-                  {shippingCost > 0 && (
-                    <div className="text-xs text-gray-500">
-                      Add Rwf{(5000 - totalAmount).toLocaleString()} more for
-                      free shipping
-                    </div>
-                  )}
 
                   <div className="border-t border-gray-200 pt-3 mt-3">
                     <div className="flex justify-between font-semibold">
@@ -353,13 +387,23 @@ const Cart: React.FC = () => {
 
               {/* Checkout Button */}
               <div className="p-6">
-                <Link
-                  to="/checkout"
-                  className="w-full bg-sky-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center hover:bg-sky-700 transition-colors duration-200"
+                <button
+                  onClick={handleProceedToCheckout}
+                  className="w-full bg-sky-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center hover:bg-sky-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={cartItems.length === 0 || isProcessingCheckout}
                 >
-                  Proceed to Checkout
-                  <i className="fas fa-arrow-right ml-2"></i>
-                </Link>
+                  {isProcessingCheckout ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Proceed to Checkout
+                      <i className="fas fa-arrow-right ml-2"></i>
+                    </>
+                  )}
+                </button>
 
                 <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-600">
                   <i className="fas fa-lock"></i>

@@ -11,7 +11,7 @@ import OrderComplete from '../components/checkout/OrderComplete';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, openAuthModal } = useAuth();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const { 
     activeStep, 
     goToNextStep, 
@@ -41,22 +41,26 @@ const Checkout: React.FC = () => {
     const initializeCheckout = async () => {
       try {
         setIsLoading(true);
-        // If cart is empty, redirect to cart page
+        
+        // If cart is empty, check if we have a draft order
         if (!cartItems || cartItems.length === 0) {
-          // Check local storage as a backup
-          const savedCart = localStorage.getItem('fastShoppingCart');
-          if (!savedCart || JSON.parse(savedCart).length === 0) {
+          const existingDraftId = localStorage.getItem("checkoutDraftOrderId");
+          if (!existingDraftId || existingDraftId === "undefined") {
+            // No draft order and no cart items, redirect to cart
             navigate('/cart');
             return;
           }
         }
 
-        // Create draft order if one doesn't exist yet
+        // Create or load draft order if one doesn't exist yet
         if (!draftOrder) {
+          console.log("No draft order found in checkout, creating one");
           await createDraftOrder();
         }
       } catch (error) {
         console.error('Error initializing checkout:', error);
+        // Redirect to cart on error
+        navigate('/cart');
       } finally {
         setIsLoading(false);
       }
@@ -64,6 +68,15 @@ const Checkout: React.FC = () => {
 
     initializeCheckout();
   }, [cartItems, draftOrder, createDraftOrder, navigate]);
+
+  // Display errors when they occur
+  useEffect(() => {
+    if (errors.length > 0) {
+      // Show first error
+      alert(errors[0]);
+      clearErrors();
+    }
+  }, [errors, clearErrors]);
 
   // If checkout is complete, show order complete page
   if (orderComplete && orderDetails) {
