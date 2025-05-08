@@ -1,119 +1,177 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import OrdersFilter from "./orders/OrdersFilter";
+import OrdersTable from "./orders/OrdersTable";
+import OrdersTabs from "./orders/OrdersTabs";
+import Pagination from "./orders/Pagination";
+import { OrderStatus, Order } from "../types/order";
+import orderApi from "../utils/orderApi";
+import { toast } from "react-toastify";
 
 const Orders: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState('all');
-  
-  // Mock orders data
-  const orders = [
-    { id: 1001, customer: 'John Doe', date: '2025-04-15', total: 129.99, status: 'completed' },
-    { id: 1002, customer: 'Jane Smith', date: '2025-04-16', total: 79.50, status: 'processing' },
-    { id: 1003, customer: 'Robert Johnson', date: '2025-04-16', total: 299.95, status: 'pending' },
-    { id: 1004, customer: 'Emily Williams', date: '2025-04-17', total: 149.00, status: 'completed' },
-    { id: 1005, customer: 'Michael Brown', date: '2025-04-17', total: 59.99, status: 'cancelled' },
-    { id: 1006, customer: 'Sarah Miller', date: '2025-04-18', total: 189.50, status: 'processing' },
-  ];
-  
-  // Filter orders based on selected tab
-  const filteredOrders = selectedTab === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === selectedTab);
-  
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Orders Management</h1>
-      
-      {/* Tab navigation */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex -mb-px">
-          {['all', 'pending', 'processing', 'completed', 'cancelled'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setSelectedTab(tab)}
-              className={`py-4 px-6 text-sm font-medium flex items-center whitespace-nowrap
-                ${selectedTab === tab 
-                  ? 'border-b-2 border-sky-500 text-sky-600' 
-                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {tab === 'all' && (
-                <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
-                  {orders.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
-      
-      {/* Orders table */}
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Order ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Customer
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">#{order.id}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{order.customer}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{order.date}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${order.total.toFixed(2)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                        order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'}`}
-                    >
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-sky-600 hover:text-sky-900 mr-3">View</button>
-                    <button className="text-gray-600 hover:text-gray-900">Edit</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+  const [selectedTab, setSelectedTab] = useState<OrderStatus | "all">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const queryParams = {
+          page: currentPage,
+          limit: itemsPerPage,
+          ...(selectedTab !== "all" && { status: selectedTab }),
+          ...filters
+        };
+
+        const response = await orderApi.getOrders(queryParams);
         
-        {/* Empty state */}
-        {filteredOrders.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-gray-500">No orders found</p>
-          </div>
-        )}
+        setOrders(response.data.orders);
+        setTotalOrders(response.pagination.totalOrders);
+        setTotalPages(response.pagination.totalPages);
+        
+      } catch (err) {
+        console.error("Failed to fetch orders:", err);
+        setError("Failed to load orders. Please try again later.");
+        setOrders([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [selectedTab, filters, currentPage]);
+
+  // Calculate order counts by status for tab display
+  const orderCounts = {
+    all: totalOrders,
+    [OrderStatus.PENDING]: orders
+      ? orders.filter((o) => o.status === OrderStatus.PENDING).length
+      : 0,
+    [OrderStatus.PROCESSING]: orders
+      ? orders.filter((o) => o.status === OrderStatus.PROCESSING).length
+      : 0,
+    [OrderStatus.SHIPPED]: orders
+      ? orders.filter((o) => o.status === OrderStatus.SHIPPED).length
+      : 0,
+    [OrderStatus.DELIVERED]: orders
+      ? orders.filter((o) => o.status === OrderStatus.DELIVERED).length
+      : 0,
+    [OrderStatus.COMPLETED]: orders
+      ? orders.filter((o) => o.status === OrderStatus.COMPLETED).length
+      : 0,
+    [OrderStatus.CANCELLED]: orders
+      ? orders.filter((o) => o.status === OrderStatus.CANCELLED).length
+      : 0,
+    [OrderStatus.REFUNDED]: orders
+      ? orders.filter((o) => o.status === OrderStatus.REFUNDED).length
+      : 0,
+    [OrderStatus.DRAFT]: orders
+      ? orders.filter((o) => o.status === OrderStatus.DRAFT).length
+      : 0,
+  };
+
+  const handleFilter = (newFilters: Record<string, any>) => {
+    setFilters(newFilters);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleResetFilters = () => {
+    setFilters({});
+    setCurrentPage(1);
+  };
+
+  const handleCancelOrder = async (
+    orderId: number,
+    reason?: string
+  ): Promise<void> => {
+    try {
+      await orderApi.cancelOrder(orderId, reason);
+
+      // Update the orders list after successful cancellation
+      const updatedOrders = orders.map((order) =>
+        order.id === orderId
+          ? { ...order, status: OrderStatus.CANCELLED }
+          : order
+      );
+
+      setOrders(updatedOrders);
+      toast.success("Order cancelled successfully");
+    } catch (err) {
+      console.error("Failed to cancel order:", err);
+      toast.error("Failed to cancel order. Please try again.");
+      throw err;
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Orders Management</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage and track all customer orders
+        </p>
       </div>
+
+      {/* Filters */}
+      <OrdersFilter onFilter={handleFilter} onReset={handleResetFilters} />
+
+      {/* Tabs */}
+      <OrdersTabs
+        selectedTab={selectedTab}
+        onTabChange={setSelectedTab as (tab: string) => void}
+        counts={orderCounts}
+      />
+
+      {/* Error state */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-red-400"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Orders Table */}
+      <OrdersTable
+        orders={orders || []}
+        onViewOrder={() => {}}
+        onEditOrder={() => {}}
+        onCancelOrder={handleCancelOrder}
+        isLoading={isLoading}
+      />
+
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 };

@@ -22,11 +22,27 @@ export type PaymentStatus =
 
 // Types
 export interface PaymentFormData {
-  cardNumber: string;
-  cardName: string;
-  expiryDate: string;
-  cvv: string;
-  saveCard: boolean;
+  // Common fields
+  paymentMethod: string;
+  
+  // Credit Card fields
+  cardNumber?: string;
+  cardName?: string;
+  expiryDate?: string;
+  cvv?: string;
+  saveCard?: boolean;
+  cardType?: string;
+  lastFour?: string;
+  
+  // PayPal fields
+  transactionId?: string;
+  payerEmail?: string;
+  
+  // Mobile Money fields
+  phone?: string;
+  
+  // Generic payment details
+  [key: string]: any;
 }
 
 export interface DeliveryOption {
@@ -123,6 +139,13 @@ interface CheckoutContextType {
   paymentMethod: string;
   availableShippingMethods: DeliveryOption[];
   processOrder: () => Promise<void>;
+
+  selectedShipping: string;
+  cartTotal: number;
+  discountAmount: number;
+  orderTotal: number;
+  items: any[];
+  handlePlaceOrder: () => Promise<void>;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(
@@ -196,6 +219,7 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     saveAddress: false,
   });
   const [paymentData, setPaymentData] = useState<PaymentFormData>({
+    paymentMethod: "card",
     cardNumber: "",
     cardName: "",
     expiryDate: "",
@@ -306,20 +330,20 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         return false;
       }
 
-      if (paymentData.cardNumber.replace(/\s/g, "").length < 16) {
+      if (paymentData.cardNumber?.replace(/\D/g, "").slice(-4) || "") {
         setErrors((prev) => [...prev, "Please enter a valid card number"]);
         return false;
       }
 
-      if (!/^\d{2}\/\d{2}$/.test(paymentData.expiryDate)) {
+      if (!/^\d{2}\/\d{2}$/.test(paymentData.expiryDate || '')) {
         setErrors((prev) => [
           ...prev,
           "Please enter expiry date in MM/YY format",
         ]);
         return false;
       }
-
-      if (paymentData.cvv.length < 3) {
+      const pcvv = paymentData.cvv || ''
+      if (pcvv.length < 3) {
         setErrors((prev) => [...prev, "Please enter a valid CVV"]);
         return false;
       }
@@ -646,7 +670,7 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
           paymentDetails:
             selectedPaymentMethod === "card"
               ? {
-                  cardNumber: paymentData.cardNumber
+                  cardNumber: paymentData.cardNumber || ''
                     .replace(/\D/g, "")
                     .slice(-4),
                   cardholderName: paymentData.cardName,
@@ -809,7 +833,7 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         paymentDetails:
           selectedPaymentMethod === "card"
             ? {
-                cardNumber: paymentData.cardNumber.replace(/\D/g, "").slice(-4),
+                cardNumber: paymentData.cardNumber?.replace(/\D/g, "").slice(-4),
                 cardholderName: paymentData.cardName,
                 expiryDate: paymentData.expiryDate,
               }
@@ -1048,62 +1072,68 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [selectedShippingMethod, deliveryOptions, totalAmount, taxAmount]);
 
-  // Context value
-  const value: CheckoutContextType = {
-    activeStep,
-    goToNextStep,
-    goToPrevStep,
-    goToStep,
-    isAuthenticated,
-    addressData,
-    handleAddressChange,
-    paymentData,
-    paymentDetails,
-    setPaymentDetails,
-    handlePaymentChange,
-    handleCheckboxChange,
-    handlePaymentCompletion,
-    deliveryOptions,
-    paymentStatus,
-    setPaymentStatus,
-    selectedShippingMethod,
-    setSelectedShippingMethod,
-    paymentMethods,
-    selectedPaymentMethod,
-    setErrors,
-    setSelectedPaymentMethod,
-    cartItems,
-    totalAmount,
-    totalSavings,
-    shippingCost,
-    taxAmount,
-    totalOrderAmount,
-    isProcessingOrder,
-    orderComplete,
-    orderDetails,
-    submitOrder,
-    createDraftOrder,
-    updateDraftOrder,
-    draftOrder,
-    errors,
-    clearErrors,
-    savedAddresses,
-    fetchSavedAddresses,
-    loadSavedAddress,
-    validateAddress,
-    validatePayment,
-    isAddressValid,
-    addressValidationMessage,
-    isLoadingShippingOptions,
-    refreshShippingOptions,
-    shippingAddress: addressData,
-    billingAddress: addressData,
-    useSameAddressForBilling,
-    shippingMethod: selectedShippingMethod,
-    paymentMethod: selectedPaymentMethod,
-    availableShippingMethods: deliveryOptions,
-    processOrder,
-  };
+const value: CheckoutContextType = {
+  activeStep,
+  goToNextStep,
+  goToPrevStep,
+  goToStep,
+  isAuthenticated,
+  addressData,
+  handleAddressChange,
+  paymentData,
+  paymentDetails,
+  setPaymentDetails,
+  handlePaymentChange,
+  handleCheckboxChange,
+  handlePaymentCompletion,
+  deliveryOptions,
+  paymentStatus,
+  setPaymentStatus,
+  selectedShippingMethod: selectedShippingMethod,
+  setSelectedShippingMethod,
+  paymentMethods,
+  selectedPaymentMethod,
+  setErrors,
+  setSelectedPaymentMethod,
+  cartItems,
+  totalAmount: totalAmount,
+  totalSavings,
+  shippingCost,
+  taxAmount,
+  totalOrderAmount: totalOrderAmount,
+  isProcessingOrder,
+  orderComplete,
+  orderDetails,
+  submitOrder: submitOrder,
+  createDraftOrder,
+  updateDraftOrder,
+  draftOrder,
+  errors,
+  clearErrors,
+  savedAddresses,
+  fetchSavedAddresses,
+  loadSavedAddress,
+  validateAddress,
+  validatePayment,
+  isAddressValid,
+  addressValidationMessage,
+  isLoadingShippingOptions,
+  refreshShippingOptions,
+  shippingAddress: addressData,
+  billingAddress: addressData,
+  useSameAddressForBilling,
+  shippingMethod: selectedShippingMethod,
+  paymentMethod: selectedPaymentMethod,
+  availableShippingMethods: deliveryOptions,
+  processOrder,
+
+  selectedShipping: selectedShippingMethod,
+  cartTotal: totalAmount, 
+  discountAmount: totalSavings, 
+  orderTotal: totalOrderAmount,
+  items: cartItems, 
+  handlePlaceOrder: submitOrder,
+};
 
   return (
     <CheckoutContext.Provider value={value}>

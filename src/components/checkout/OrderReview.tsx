@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { useCheckout } from "../../context/CheckoutContenxt";
-import { PaymentStatus, DraftOrder } from "../../context/CheckoutContenxt";
+import { useCheckout, PaymentFormData } from "../../context/CheckoutContenxt";
+import { PaymentStatus } from "../../context/CheckoutContenxt";
+import { AddressFormData } from "../../utils/addressApi";
 import orderApi from "../../utils/orderApi";
 
 interface OrderReviewProps {
-  addressData: any;
+  addressData: AddressFormData;
   selectedShipping: string;
   selectedPaymentMethod: string;
-  paymentData: any;
-  cartItems: any[];
-  deliveryOptions: any[];
-  paymentMethods: any[];
-  isLoading: boolean;
-  onEditShipping: () => void;
-  onEditPayment: () => void;
-  onPrevStep: () => void;
-  onSubmitOrder: () => void;
+  paymentData: PaymentFormData;
+  cartTotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  discountAmount: number;
+  orderTotal: number;
+  items: any[];
+  onPlaceOrder: () => Promise<void>;
+  
 }
 
 const OrderReview: React.FC<OrderReviewProps> = ({
@@ -23,32 +24,32 @@ const OrderReview: React.FC<OrderReviewProps> = ({
   selectedShipping,
   selectedPaymentMethod,
   paymentData,
-  cartItems,
-  deliveryOptions,
-  paymentMethods,
-  isLoading,
-  onEditShipping,
-  onEditPayment,
-  onPrevStep,
-  onSubmitOrder,
+  cartTotal,
+  shippingCost,
+  taxAmount,
+  discountAmount,
+  orderTotal,
+  items,
+  onPlaceOrder,
 }) => {
   const {
+    deliveryOptions,
+    isProcessingOrder: isLoading,
+    goToPrevStep: onPrevStep,
+    goToStep,
     draftOrder,
-    shippingAddress,
-    billingAddress,
-    useSameAddressForBilling,
-    shippingMethod,
     paymentMethod,
     paymentDetails,
     setPaymentDetails,
     paymentStatus,
     setPaymentStatus,
-    availableShippingMethods,
-    processOrder,
   } = useCheckout();
 
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  const onEditShipping = () => goToStep(0);
+  const onEditPayment = () => goToStep(2);
 
   useEffect(() => {
     const checkStoredPayment = async () => {
@@ -86,8 +87,8 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         <p className="font-medium text-gray-800">
           {address.firstName} {address.lastName}
         </p>
-        <p className="text-gray-600">{address.address1}</p>
-        {address.address2 && <p className="text-gray-600">{address.address2}</p>}
+        <p className="text-gray-600">{address.address1 || address.address}</p>
+        {(address.address2) && <p className="text-gray-600">{address.address2}</p>}
         <p className="text-gray-600">
           {address.city}, {address.state} {address.postalCode}
         </p>
@@ -210,7 +211,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
 
     try {
       setIsPlacingOrder(true);
-      await onSubmitOrder();
+      await onPlaceOrder();
     } catch (error) {
       console.error("Error placing order:", error);
       alert("There was a problem placing your order. Please try again.");
@@ -229,7 +230,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
     return termsAccepted;
   };
 
-  // Calculate order totals from cart items if draftOrder is not available
   const calculateTotals = () => {
     if (draftOrder) {
       return {
@@ -240,18 +240,13 @@ const OrderReview: React.FC<OrderReviewProps> = ({
       };
     }
 
-    // Fallback calculation from cart items
-    const subtotal = cartItems.reduce(
-      (sum, item) => sum + (item.price * item.quantity),
-      0
-    );
-    const shipping = selectedShipping 
-      ? deliveryOptions.find(m => m.id === selectedShipping)?.price || 0 
-      : 0;
-    const tax = subtotal * 0.18; // Assuming 18% VAT
-    const total = subtotal + shipping + tax;
-
-    return { subtotal, shipping, tax, total };
+    // Use the props passed in if available
+    return { 
+      subtotal: cartTotal, 
+      shipping: shippingCost, 
+      tax: taxAmount, 
+      total: orderTotal 
+    };
   };
 
   const { subtotal, shipping, tax, total } = calculateTotals();
@@ -260,7 +255,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
     <div className="bg-white p-6 rounded-lg border border-gray-100 shadow-sm">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Order Review</h2>
 
-      {/* Edit buttons */}
       <div className="flex justify-end gap-4 mb-6">
         <button
           onClick={onEditShipping}
@@ -276,9 +270,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         </button>
       </div>
 
-      {/* Information sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Shipping Information */}
         <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
           <h3 className="text-lg font-medium text-gray-800 mb-4">
             Shipping Information
@@ -303,7 +295,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
           </div>
         </div>
 
-        {/* Payment Information */}
         <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
           <h3 className="text-lg font-medium text-gray-800 mb-4">
             Payment Information
@@ -321,7 +312,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         </div>
       </div>
 
-      {/* Order Items */}
       <div className="mb-8">
         <h3 className="text-lg font-medium text-gray-800 mb-4">Order Items</h3>
         <div className="bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
@@ -343,7 +333,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {cartItems.map((item, index) => (
+              {items.map((item, index) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -374,7 +364,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         </div>
       </div>
 
-      {/* Order Summary */}
       <div className="mb-8">
         <h3 className="text-lg font-medium text-gray-800 mb-4">Order Summary</h3>
         <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
@@ -397,6 +386,14 @@ const OrderReview: React.FC<OrderReviewProps> = ({
                 {formatCurrency(tax)}
               </span>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Discount</span>
+                <span className="font-medium text-green-600">
+                  -{formatCurrency(discountAmount)}
+                </span>
+              </div>
+            )}
             <div className="border-t border-gray-200 pt-3">
               <div className="flex justify-between">
                 <span className="text-lg font-semibold text-gray-800">Total</span>
@@ -409,7 +406,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         </div>
       </div>
 
-      {/* Terms and Conditions */}
       <div className="mb-8">
         <div className="flex items-start">
           <div className="flex items-center h-5">
@@ -435,7 +431,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-between items-center">
         <button
           onClick={onPrevStep}

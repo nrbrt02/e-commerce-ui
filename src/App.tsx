@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { CheckoutProvider } from "./context/CheckoutContenxt";
 import { ToastProvider } from "./components/ui/ToastProvider";
+// import useToast from './utils/toast';
 
 // Import components
 import Header from "./components/layout/Header";
@@ -17,7 +18,7 @@ import ProductGridPage from "./components/products/ProductGridPage";
 import TopBar from "./components/layout/TopBar";
 import Navigation from "./components/layout/Navigation";
 import Dashboard from "./pages/Dashboard";
-import { DashboardHeader, Sidebar } from "./components/dashboard"; // Import dashboard components
+import { DashboardHeader, Sidebar } from "./components/dashboard";
 import Products from "./pages/Products";
 import Customers from "./pages/Customers";
 import Categories from "./pages/Categories";

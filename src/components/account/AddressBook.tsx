@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { addressApi, Address } from "../../utils/addressApi";
+import { addressApi, Address, BackendAddress } from "../../utils/addressApi";
 
 const AddressBook: React.FC = () => {
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -27,30 +27,30 @@ const AddressBook: React.FC = () => {
     fetchAddresses();
   }, []);
 
-  // Fetch addresses from API
-  const fetchAddresses = async () => {
-    setIsLoading(true);
-    setError(null);
+const fetchAddresses = async () => {
+  setIsLoading(true);
+  setError(null);
+  
+  try {
+    const fetchedAddresses = await addressApi.getMyAddresses();
     
-    try {
-      const fetchedAddresses = await addressApi.getMyAddresses();
-      
-      // Transform addresses if they're in backend format
-      const transformedAddresses = fetchedAddresses.map(address => {
-        if ('addressLine1' in address) {
-          return addressApi.transformBackendToFrontend(address);
-        }
-        return address;
-      });
-      
-      setAddresses(transformedAddresses);
-    } catch (err) {
-      console.error("Error fetching addresses:", err);
-      setError("Failed to load your saved addresses. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Ensure all addresses are in frontend format
+    const transformedAddresses = fetchedAddresses.map(address => {
+      // Type guard to check if it's a backend address
+      if ('addressLine1' in address) {
+        return addressApi.transformBackendToFrontend(address as BackendAddress);
+      }
+      return address as Address;
+    });
+    
+    setAddresses(transformedAddresses);
+  } catch (err) {
+    console.error("Error fetching addresses:", err);
+    setError("Failed to load your saved addresses. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Handle adding a new address
   const handleAddAddress = () => {

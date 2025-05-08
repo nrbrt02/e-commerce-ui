@@ -297,7 +297,7 @@ const CheckoutPage: React.FC = () => {
                 selectedShipping={selectedShippingMethod}
                 selectedPaymentMethod={selectedPaymentMethod}
                 paymentData={paymentData}
-                cartItems={cartItems}
+                items={cartItems}
                 deliveryOptions={deliveryOptions}
                 paymentMethods={paymentMethods}
                 isLoading={isProcessingOrder}

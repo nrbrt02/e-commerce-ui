@@ -7,7 +7,7 @@ import customerAPI from "../utils/customerApi"
 import CustomerProfile from '../components/account/CustomerProfile';
 import UpdatePassword from '../components/account/UpdatePassword';
 import AddressManagement from '../components/account/AddressManagement';
-// import WishlistComponent from '../components/account/WishlistComponent';
+import OrdersTab from './account/OrdersTab';
 
 const AccountPage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -113,21 +113,7 @@ const AccountPage: React.FC = () => {
       case 'orders':
       default:
         return (
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="p-4 bg-sky-50 border-b border-gray-200">
-              <h2 className="font-medium text-sky-800">My Orders</h2>
-            </div>
-            
-            <div className="p-8 text-center bg-gray-50">
-              <div className="text-gray-500">
-                <i className="fas fa-shopping-bag text-3xl mb-3"></i>
-                <p>You haven't placed any orders yet.</p>
-                <a href="/products" className="mt-3 inline-block text-sky-600 hover:text-sky-800 hover:underline">
-                  Browse Products
-                </a>
-              </div>
-            </div>
-          </div>
+        <OrdersTab />
         );
     }
   };

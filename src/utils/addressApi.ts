@@ -281,7 +281,7 @@ export const addressApi = {
       state: backendAddress.state,
       postalCode: backendAddress.postalCode,
       country: backendAddress.country,
-      phone: backendAddress.phone || '',
+      phone: backendAddress.phone,
       isDefault: backendAddress.isDefault,
       type: backendAddress.type
     };

@@ -2,12 +2,10 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCheckout } from '../context/CheckoutContenxt';
 import OrderComplete from '../components/checkout/OrderComplete';
-import { useCart } from '../context/CartContext';
 
 const CheckoutSuccess: React.FC = () => {
   const navigate = useNavigate();
   const { orderDetails, orderComplete, addressData, totalAmount, shippingCost, taxAmount, totalOrderAmount } = useCheckout();
-  const cartContext = useCart();
   
   // Redirect to home if no order details are available
   useEffect(() => {
@@ -48,12 +46,19 @@ const CheckoutSuccess: React.FC = () => {
   
   return (
     <OrderComplete
-      orderId={orderDetails.orderNumber || 'N/A'}
-      email={addressData.email}
-      totalAmount={totalAmount}
-      shippingCost={shippingCost}
-      taxAmount={taxAmount}
-      totalOrderAmount={totalOrderAmount}
+      order={{
+        orderNumber: orderDetails.orderNumber || 'N/A',
+        email: addressData.email,
+        subtotal: totalAmount,
+        shipping: shippingCost,
+        tax: taxAmount,
+        total: totalOrderAmount,
+        items: orderDetails.items || [],
+        paymentMethod: orderDetails.paymentMethod,
+        paymentStatus: orderDetails.paymentStatus,
+        createdAt: orderDetails.createdAt,
+        estimatedDelivery: orderDetails.estimatedDelivery,
+      }}
       onContinueShopping={handleContinueShopping}
     />
   );

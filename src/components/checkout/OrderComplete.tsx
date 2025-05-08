@@ -2,9 +2,25 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 interface OrderCompleteProps {
-  order: any;
+  order: {
+    orderNumber?: string;
+    email?: string;
+    subtotal?: number;
+    shipping?: number;
+    tax?: number;
+    total?: number;
+    items?: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+    }>;
+    paymentMethod?: string;
+    paymentStatus?: string;
+    createdAt?: string;
+    estimatedDelivery?: string;
+  };
+  onContinueShopping?: () => void;
 }
-
 const OrderComplete: React.FC<OrderCompleteProps> = ({ order }) => {
   // Check if order exists to prevent errors
   if (!order) {
