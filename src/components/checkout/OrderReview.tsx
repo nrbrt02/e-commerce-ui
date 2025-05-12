@@ -15,8 +15,8 @@ interface OrderReviewProps {
   discountAmount: number;
   orderTotal: number;
   items: any[];
-  onPlaceOrder: () => Promise<void>;
-  
+  // Make onPlaceOrder optional with a default implementation
+  // onPlaceOrder?: () => Promise<void>;
 }
 
 const OrderReview: React.FC<OrderReviewProps> = ({
@@ -30,7 +30,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
   discountAmount,
   orderTotal,
   items,
-  onPlaceOrder,
+  // onPlaceOrder,
 }) => {
   const {
     deliveryOptions,
@@ -43,6 +43,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
     setPaymentDetails,
     paymentStatus,
     setPaymentStatus,
+    handlePlaceOrder: contextPlaceOrder,
   } = useCheckout();
 
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -199,7 +200,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
       alert("Please accept the terms and conditions");
       return;
     }
-
+  
     if (
       (selectedPaymentMethod === "paypal" || selectedPaymentMethod === "card") &&
       paymentStatus !== "authorized" &&
@@ -208,13 +209,21 @@ const OrderReview: React.FC<OrderReviewProps> = ({
       alert("Please complete the payment process before placing your order");
       return;
     }
-
+  
     try {
       setIsPlacingOrder(true);
-      await onPlaceOrder();
+      
+      // Use the contextPlaceOrder function from the destructured context
+      if (typeof contextPlaceOrder === 'function') {
+        await contextPlaceOrder();
+        return;
+      }
+      
+      // If neither is available, throw an error
+      throw new Error("No order placement function available");
     } catch (error) {
       console.error("Error placing order:", error);
-      alert("There was a problem placing your order. Please try again.");
+      alert(error instanceof Error ? error.message : "There was a problem placing your order. Please try again.");
     } finally {
       setIsPlacingOrder(false);
     }

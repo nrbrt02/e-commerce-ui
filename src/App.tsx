@@ -57,7 +57,9 @@ const ProtectedRoute: React.FC<{
 };
 
 // Checkout wrapper component to provide CheckoutContext
-const CheckoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const CheckoutWrapper: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   return <CheckoutProvider>{children}</CheckoutProvider>;
 };
 
@@ -187,19 +189,19 @@ const App: React.FC = () => {
         <Route path="/" element={<FrontendLayout />}>
           <Route index element={<HomePage />} />
           <Route path="products" element={<ProductGridPage />} />
-          
+
           {/* Cart page wrapped with CheckoutProvider */}
-          <Route 
-            path="cart" 
+          <Route
+            path="cart"
             element={
               <CheckoutWrapper>
                 <CartPage />
               </CheckoutWrapper>
-            } 
+            }
           />
-          
+
           <Route path="product/:id" element={<ProductDetail />} />
-          
+
           {/* Checkout routes with provider */}
           <Route
             path="checkout"
