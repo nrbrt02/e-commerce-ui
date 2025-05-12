@@ -82,12 +82,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           isOpen ? "" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        
-
         {/* User Profile Card */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
           <div className="bg-sky-100 dark:bg-sky-900 text-sky-600 dark:text-sky-300 rounded-full h-10 w-10 flex items-center justify-center font-medium">
-            {user?.firstName?.[0] || user?.username?.[0] || user?.name?.[0] || "U"}
+            {user?.firstName?.[0] ||
+              user?.username?.[0] ||
+              user?.name?.[0] ||
+              "U"}
           </div>
           <div>
             <p className="font-medium text-gray-800 dark:text-gray-100 truncate">
@@ -133,7 +134,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 Dashboard
               </NavLink>
             </li>
-
             {/* Catalog Section */}
             <li className="mt-4 px-4">
               <h3
@@ -175,6 +175,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 Products
               </NavLink>
             </li>
+            
+            <li>
+              <NavLink
+                to="/dashboard/reviews"
+                onClick={handleNavigation}
+                className={({ isActive }) =>
+                  `flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 transition-all ${
+                    isActive
+                      ? "bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 font-medium border-r-4 border-sky-500"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+                My Reviews
+              </NavLink>
+            </li>
             {isStaff && (
               <li>
                 <NavLink
@@ -206,7 +236,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </NavLink>
               </li>
             )}
-
             {/* Sales Section (Admin/Manager) */}
             {(isAdmin || isManager) && (
               <>
@@ -275,7 +304,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </li>
               </>
             )}
-
             {/* Reports (Admin Only) */}
             {isAdmin && (
               <>
@@ -315,7 +343,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </li>
               </>
             )}
-
             {/* Admin Section (Admin Only) */}
             {isAdmin && (
               <>
@@ -390,7 +417,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </li>
               </>
             )}
-
             {/* Account Section */}
             <li className="mt-4 px-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CartItem } from '../../context/CartContext';
+import React from "react";
+import { CartItem } from "../../context/CartContext";
 
 interface OrderSummaryProps {
   cartItems: CartItem[];
@@ -31,18 +31,11 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   setCouponApplied,
   applyCoupon,
   isLoading,
-  handleProceedToCheckout,
-  isProcessingCheckout
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const toggleSummary = () => {
-    setIsOpen(!isOpen);
-  };
-
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 sticky top-24">
         {/* Order Summary Header */}
         <div className="p-6 border-b border-gray-100">
@@ -70,7 +63,9 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
             <div className="flex justify-between">
               <span className="text-gray-600">Shipping</span>
               <span className="text-green-600">
-                {shippingCost === 0 ? 'FREE' : `Rwf ${shippingCost.toLocaleString()}`}
+                {shippingCost === 0
+                  ? "FREE"
+                  : `Rwf ${shippingCost.toLocaleString()}`}
               </span>
             </div>
 
@@ -85,7 +80,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               <div className="flex justify-between font-semibold">
                 <span className="text-gray-800">Total Amount</span>
                 <span className="text-gray-900">
-                  Rwf{Math.round(totalOrderAmount).toLocaleString()}
+                  Rwf{Math.round(totalOrderAmount + taxAmount).toLocaleString()}
                 </span>
               </div>
               {totalSavings > 0 && (
@@ -112,9 +107,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
                   <p className="text-sm font-medium text-green-800">
                     {couponCode}
                   </p>
-                  <p className="text-xs text-green-600">
-                    Discount applied
-                  </p>
+                  <p className="text-xs text-green-600">Discount applied</p>
                 </div>
               </div>
               <button

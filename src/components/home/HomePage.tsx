@@ -49,21 +49,6 @@ const HomePage: React.FC = () => {
         </div>
       )}
     </div>
-      {/* <div className="my-8">
-        <CategoryGrid 
-          title="Shop From"
-          highlightedText="Top Categories"
-          categories={categories}
-        />
-      </div> */}
-      
-      {/* <div className="my-8">
-        <BrandCarousel 
-          title="Top"
-          highlightedText="Electronics Brands"
-          brands={brands}
-        />
-      </div> */}
     </div>
   );
 };

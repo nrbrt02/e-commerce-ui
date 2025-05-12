@@ -38,7 +38,7 @@ const ProductGridPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center text-red-500">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-red-500">
         <p>Error loading products: {error}</p>
         <button 
           onClick={() => window.location.reload()} 
@@ -51,7 +51,7 @@ const ProductGridPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <ProductGrid 
         title="All Products"
         highlightedText="Collection"

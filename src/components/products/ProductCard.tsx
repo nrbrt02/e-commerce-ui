@@ -10,48 +10,31 @@ interface ProductImage {
   url: string;
 }
 
-interface ProductDimensions {
-  width: number;
-  height: number;
-  length: number;
-}
-
-interface ProductCategory {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  image?: string;
-  parentId?: number | null;
-  level?: number;
-  path?: string;
-  isActive?: boolean;
-  order?: number;
-  metadata?: any;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface ApiProduct {
+// Create a type that combines the most permissive version of both Product and ApiProduct
+type ProductCardProduct = {
   id: number;
   name: string;
   description: string;
   shortDescription: string;
   sku: string;
   barcode?: string;
-  price: string;
-  compareAtPrice: string | null;
-  costPrice: string;
+  price: string | number;
+  compareAtPrice?: string | number | null;
+  costPrice?: string | number | null;
   isPublished: boolean;
   isFeatured: boolean;
   isDigital?: boolean;
   quantity: number;
-  lowStockThreshold: number;
-  weight: number;
-  dimensions: ProductDimensions;
+  lowStockThreshold?: number;
+  weight?: number;
+  dimensions?: {
+    width: number;
+    height: number;
+    length: number;
+  };
   metadata?: any;
-  tags: string[];
-  imageUrls: string[];
+  tags?: string[];
+  imageUrls?: string[];
   supplierId?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -60,11 +43,15 @@ interface ApiProduct {
     username: string;
     email: string;
   };
-  categories: ProductCategory[];
-}
+  categories: {
+    id: number;
+    name: string;
+    slug: string;
+  }[];
+};
 
 interface ProductCardProps {
-  product: ApiProduct;
+  product: ProductCardProduct;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
@@ -77,13 +64,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   
   // Initialize wishlist status on component mount and when product changes
   useEffect(() => {
-    if (product) {
+    if (product && product.id) {
       setIsAddedToWishlist(isInWishlist(product.id.toString()));
     }
   }, [product, isInWishlist]);
   
   // Get the first valid image URL
-  const getFirstImageUrl = (imageUrls: string[]): string => {
+  const getFirstImageUrl = (imageUrls?: string[]): string => {
     if (!imageUrls || imageUrls.length === 0) {
       return "/api/placeholder/150/200"; // Fallback image
     }
@@ -120,33 +107,37 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   // Calculate discount percentage
-  const calculateDiscount = (price: string, compareAtPrice: string | null): number => {
+  const calculateDiscount = (price: string | number, compareAtPrice?: string | number | null): number => {
     if (!compareAtPrice) return 0;
     
-    const currentPrice = parseFloat(price);
-    const originalPrice = parseFloat(compareAtPrice);
+    const currentPrice = typeof price === 'string' ? parseFloat(price) : price;
+    const originalPrice = typeof compareAtPrice === 'string' ? parseFloat(compareAtPrice) : compareAtPrice;
     
-    if (originalPrice <= currentPrice) return 0;
+    if (!originalPrice || originalPrice <= currentPrice) return 0;
     
     return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
   };
 
   // Calculate savings amount
-  const calculateSavings = (price: string, compareAtPrice: string | null): number => {
+  const calculateSavings = (price: string | number, compareAtPrice?: string | number | null): number => {
     if (!compareAtPrice) return 0;
     
-    const currentPrice = parseFloat(price);
-    const originalPrice = parseFloat(compareAtPrice);
+    const currentPrice = typeof price === 'string' ? parseFloat(price) : price;
+    const originalPrice = typeof compareAtPrice === 'string' ? parseFloat(compareAtPrice) : compareAtPrice;
     
-    if (originalPrice <= currentPrice) return 0;
+    if (!originalPrice || originalPrice <= currentPrice) return 0;
     
     return originalPrice - currentPrice;
   };
 
   // Handle add to cart
   const handleAddToCart = (navigateToCart: boolean = false) => {
-    const currentPrice = parseFloat(product.price);
-    const originalPrice = product.compareAtPrice ? parseFloat(product.compareAtPrice) : null;
+    if (!product.id) return;
+    
+    const currentPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    const originalPrice = product.compareAtPrice ? 
+      (typeof product.compareAtPrice === 'string' ? parseFloat(product.compareAtPrice) : product.compareAtPrice) : 
+      null;
     
     addToCart({
       id: product.id,
@@ -173,9 +164,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
-  // Handle add to wishlist - improved version based on ProductDetail.tsx implementation
+  // Handle add to wishlist
   const handleToggleWishlist = async () => {
-    if (!product) return;
+    if (!product || !product.id) return;
     
     // If user is not logged in, open auth modal
     if (!user) {
@@ -184,16 +175,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
     
     setWishlistLoading(true);
-    
-    // Debug auth status
-    const token = localStorage.getItem("fast_shopping_token");
-    console.log("Auth status before wishlist action:", {
-      token: token ? "Present" : "Missing",
-      tokenLength: token?.length || 0,
-      isAuthenticated: !!user,
-      userExists: !!user,
-      userId: user?.id,
-    });
     
     try {
       if (isAddedToWishlist) {
@@ -207,18 +188,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         }
       } else {
         // Add to wishlist
-        // First get or create default wishlist
         let wishlistId;
         
         try {
           // Try to get wishlists
           const wishlists = await wishlistApi.getWishlists();
-          if (
-            wishlists &&
-            wishlists.data &&
-            wishlists.data.wishlists &&
-            wishlists.data.wishlists.length > 0
-          ) {
+          if (wishlists?.data?.wishlists?.length > 0) {
             // Use the first wishlist
             wishlistId = wishlists.data.wishlists[0].id;
           } else {
@@ -242,30 +217,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         
         // Add to local state
         const imageUrl = getFirstImageUrl(product.imageUrls);
+        const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
         
         addToWishlist({
           id: product.id.toString(),
           name: product.name,
-          slug: product.id.toString(), // Using ID as slug if not available
-          price: parseFloat(product.price),
+          slug: product.id.toString(),
+          price: price,
           image: imageUrl,
-          inStock: product.quantity > 0,
-          category: product.categories && product.categories.length > 0 ? product.categories[0].name : undefined,
+          inStock: (product.quantity || 0) > 0,
+          category: product.categories?.[0]?.name,
           discount: calculateDiscount(product.price, product.compareAtPrice)
         });
         
         setIsAddedToWishlist(true);
         showToast.success(`${product.name} added to wishlist`);
-        
-        // Show a wishlist message in the UI if needed
-        // This part is optional and can be customized based on your UI requirements
       }
     } catch (error) {
       console.error("Error updating wishlist:", error);
       showToast.error(`Failed to update wishlist: ${error instanceof Error ? error.message : "Unknown error"}`);
-      
-      // Show error message to user
-      // You could implement a toast or some other feedback mechanism here
     } finally {
       setWishlistLoading(false);
     }
@@ -274,8 +244,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const imageUrl = getFirstImageUrl(product.imageUrls);
   const discount = calculateDiscount(product.price, product.compareAtPrice);
   const savings = calculateSavings(product.price, product.compareAtPrice);
-  const isLowStock = product.quantity <= product.lowStockThreshold && product.lowStockThreshold > 0;
-  const isSoldOut = product.quantity === 0;
+  const isLowStock = (product.quantity || 0) <= (product.lowStockThreshold || 0) && (product.lowStockThreshold || 0) > 0;
+  const isSoldOut = (product.quantity || 0) === 0;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 group">
@@ -314,10 +284,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </Link>
         
         <div className="flex items-center mb-1">
-          <span className="text-lg font-bold text-gray-800">Rwf{parseFloat(product.price).toLocaleString()}</span>
+          <span className="text-lg font-bold text-gray-800">
+            Rwf{typeof product.price === 'string' ? parseFloat(product.price).toLocaleString() : product.price.toLocaleString()}
+          </span>
           {product.compareAtPrice && (
             <span className="text-sm text-gray-500 line-through ml-2">
-              Rwf{parseFloat(product.compareAtPrice).toLocaleString()}
+              Rwf{typeof product.compareAtPrice === 'string' ? 
+                parseFloat(product.compareAtPrice).toLocaleString() : 
+                product.compareAtPrice.toLocaleString()}
             </span>
           )}
         </div>
@@ -371,7 +345,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </button>
         )}
         
-        {/* Wishlist button - improved version based on ProductDetail.tsx implementation */}
+        {/* Wishlist button */}
         <button 
           onClick={handleToggleWishlist}
           disabled={wishlistLoading}

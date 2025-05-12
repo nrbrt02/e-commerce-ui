@@ -342,7 +342,7 @@ const Navigation: React.FC = () => {
           
           {/* Hot Deals Link */}
           <Link 
-            to="/deals" 
+            to="/products?featured=true" 
             className="flex items-center py-3 px-4 font-medium text-white bg-sky-800 hover:bg-sky-900 transition-colors duration-200 rounded-lg"
           >
             <svg 
@@ -386,7 +386,7 @@ const Navigation: React.FC = () => {
           
           {/* Hot Deals Link for Mobile */}
           <Link 
-            to="/deals" 
+            to="/products?featured=true" 
             className="flex items-center py-2 px-3 font-medium text-white bg-sky-800 hover:bg-sky-900 rounded-lg transition-colors duration-200"
           >
             <svg 

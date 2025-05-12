@@ -37,6 +37,16 @@ interface PaginationInfo {
   hasNextPage: boolean;
 }
 
+interface RatingStats {
+  average: number;
+  count: number;
+  distribution: Array<{
+    rating: number;
+    count: number;
+    percentage: number;
+  }>;
+}
+
 interface ProductReviewsProps {
   productId: number | string;
   initialRating?: number;
@@ -70,10 +80,16 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
     verified: false,
     sort: "newest",
   });
-  const [ratingStats, setRatingStats] = useState({
+  const [ratingStats, setRatingStats] = useState<RatingStats>({
     average: initialRating,
     count: reviewCount,
-    distribution: [0, 0, 0, 0, 0],
+    distribution: [
+      { rating: 1, count: 0, percentage: 0 },
+      { rating: 2, count: 0, percentage: 0 },
+      { rating: 3, count: 0, percentage: 0 },
+      { rating: 4, count: 0, percentage: 0 },
+      { rating: 5, count: 0, percentage: 0 },
+    ],
   });
   const [showWriteReview, setShowWriteReview] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,7 +108,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
     setCurrentPage(page);
 
     try {
-      // Build query params
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", "5");
@@ -148,12 +163,41 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         setRatingStats({
           average: data.data.averageRating,
           count: data.data.totalReviews,
-          distribution: data.data.ratingDistribution,
+          distribution: data.data.ratingDistribution || [
+            { rating: 1, count: 0, percentage: 0 },
+            { rating: 2, count: 0, percentage: 0 },
+            { rating: 3, count: 0, percentage: 0 },
+            { rating: 4, count: 0, percentage: 0 },
+            { rating: 5, count: 0, percentage: 0 },
+          ],
         });
       }
     } catch (err) {
       console.error("Error fetching review stats:", err);
     }
+  };
+
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span key={star}>
+            {star <= Math.floor(rating) ? (
+              <i className="fas fa-star text-yellow-400"></i>
+            ) : star === Math.ceil(rating) && !Number.isInteger(rating) ? (
+              <i className="fas fa-star-half-alt text-yellow-400"></i>
+            ) : (
+              <i className="far fa-star text-gray-300"></i>
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const getRatingPercentage = (rating: number) => {
+    const ratingItem = ratingStats.distribution.find(item => item.rating === rating);
+    return ratingItem ? ratingItem.percentage : 0;
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -192,17 +236,12 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
       }
 
       setSubmitSuccess(true);
-      
-      // Reset form
       setNewReview({
         rating: 5,
         title: "",
         comment: "",
       });
-      
       setShowWriteReview(false);
-      
-      // Refresh reviews and stats after a successful submission
       fetchReviews(1);
       fetchReviewStats();
     } catch (err) {
@@ -240,7 +279,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
 
       const data = await response.json();
 
-      // Update the helpfulVotes count in the UI
       setReviews(reviews.map(review => 
         review.id === reviewId 
           ? { ...review, helpfulVotes: data.data.helpfulVotes } 
@@ -248,31 +286,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
       ));
     } catch (err) {
       console.error("Error voting review as helpful:", err);
-      // Show error notification
     }
-  };
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <span key={star}>
-            {star <= Math.floor(rating) ? (
-              <i className="fas fa-star text-yellow-400"></i>
-            ) : star === Math.ceil(rating) && !Number.isInteger(rating) ? (
-              <i className="fas fa-star-half-alt text-yellow-400"></i>
-            ) : (
-              <i className="far fa-star text-gray-300"></i>
-            )}
-          </span>
-        ))}
-      </div>
-    );
-  };
-
-  const getRatingPercentage = (ratingIndex: number) => {
-    if (ratingStats.count === 0) return 0;
-    return (ratingStats.distribution[ratingIndex] / ratingStats.count) * 100;
   };
 
   const formatDate = (dateString: string) => {
@@ -307,7 +321,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         </div>
       )}
 
-      {/* Review Summary */}
       <div className="flex flex-col md:flex-row gap-6 mb-8 border-b border-gray-200 pb-8">
         <div className="md:w-1/3">
           <div className="text-center">
@@ -339,11 +352,11 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 <div className="flex-grow mx-2 bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-yellow-400 h-full"
-                    style={{ width: `${getRatingPercentage(star - 1)}%` }}
+                    style={{ width: `${getRatingPercentage(star)}%` }}
                   ></div>
                 </div>
                 <span className="text-sm text-gray-500 w-12 text-right">
-                  {ratingStats.distribution[star - 1]}
+                  {ratingStats.distribution.find(item => item.rating === star)?.count || 0}
                 </span>
               </div>
             ))}
@@ -367,7 +380,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         </div>
       </div>
 
-      {/* Write a review form */}
       {showWriteReview && (
         <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-gray-50">
           <h3 className="text-xl font-semibold mb-4">Write a Review</h3>
@@ -432,7 +444,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         </div>
       )}
 
-      {/* Filter bar */}
       <div className="flex flex-wrap justify-between items-center mb-6">
         <div className="flex gap-4 mb-4 md:mb-0">
           <button
@@ -478,7 +489,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         )}
       </div>
 
-      {/* Reviews list */}
       {loading && reviews.length === 0 ? (
         <div className="py-6">
           <div className="animate-pulse space-y-6">
@@ -613,7 +623,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         </div>
       )}
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="flex justify-center mt-8">
           <div className="flex gap-2">
@@ -627,7 +636,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
             
             {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
               .filter(page => {
-                // Show first page, last page, and pages around current page
                 return (
                   page === 1 ||
                   page === pagination.totalPages ||
@@ -636,7 +644,6 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
               })
               .map((page, index, array) => {
                 const prevPage = array[index - 1];
-                // Add ellipsis if there's a gap
                 const showEllipsis = prevPage && page - prevPage > 1;
                 
                 return (

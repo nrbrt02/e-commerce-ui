@@ -304,7 +304,7 @@ const ProductDetail: React.FC = () => {
   
   if (isLoading) {
     return (
-        <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col lg:flex-row gap-8 animate-pulse">
             <div className="lg:w-2/5">
               <div className="aspect-square rounded-lg bg-gray-200 mb-4"></div>
@@ -339,7 +339,7 @@ const ProductDetail: React.FC = () => {
 
   if (error || !product) {
     return (
-        <div className="container mx-auto px-4 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="max-w-lg mx-auto text-center">
             <div className="text-red-500 text-5xl mb-4">
               <i className="fas fa-exclamation-circle"></i>
@@ -368,7 +368,7 @@ const ProductDetail: React.FC = () => {
   const isSoldOut = product.quantity === 0;
 
   return (
-      <div className="container mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 text-sm text-gray-500">
           <nav className="flex" aria-label="Breadcrumb">
             <ol className="inline-flex items-center space-x-1 md:space-x-3">

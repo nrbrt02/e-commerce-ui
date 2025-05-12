@@ -12,9 +12,9 @@ import CartPage from "./pages/Cart";
 import CheckoutPage from "./components/checkout/CheckoutPage";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import AccountPage from "./pages/Account";
+import AllProducts from "./pages/products/AllProducts";
 import AddressBook from "./components/account/AddressBook";
 import HomePage from "./components/home/HomePage";
-import ProductGridPage from "./components/products/ProductGridPage";
 import TopBar from "./components/layout/TopBar";
 import Navigation from "./components/layout/Navigation";
 import Dashboard from "./pages/Dashboard";
@@ -24,6 +24,7 @@ import Customers from "./pages/Customers";
 import Categories from "./pages/Categories";
 import Orders from "./pages/Orders";
 import ProductDetail from "./pages/ProductDetail";
+import Reviews from "./pages/reviews/Review";
 
 // Protected route component with staff check
 const ProtectedRoute: React.FC<{
@@ -182,13 +183,14 @@ const App: React.FC = () => {
           <Route path="categories" element={<Categories />} />
           <Route path="customers" element={<Customers />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="reviews" element={<Reviews />} />
           {/* Example: <Route path="products" element={<DashboardProducts />} /> */}
         </Route>
 
         {/* Frontend routes with frontend layout */}
         <Route path="/" element={<FrontendLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="products" element={<ProductGridPage />} />
+          <Route path="products" element={<AllProducts />} />
 
           {/* Cart page wrapped with CheckoutProvider */}
           <Route

@@ -1,5 +1,0 @@
-import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
-const Footer = () => {
-    return (_jsx("footer", { className: "bg-white border-gray-200 mt-12", children: _jsx("div", { className: "max-w-7xl mx-auto px-4 lg:px-6 py-12", children: _jsx("div", { className: "mt-8 pt-8 border-t border-gray-200", children: _jsxs("div", { className: "flex flex-col md:flex-row md:justify-between items-center", children: [_jsxs("p", { className: "text-gray-500 text-sm", children: ["\u00A9 ", new Date().getFullYear(), " Fast Shopping. All rights reserved."] }), _jsxs("div", { className: "mt-4 md:mt-0 flex space-x-4", children: [_jsx("img", { src: "https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/visa.svg", alt: "Visa", className: "h-6" }), _jsx("img", { src: "https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/mastercard.svg", alt: "Mastercard", className: "h-6" }), _jsx("img", { src: "https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/paypal.svg", alt: "PayPal", className: "h-6" }), _jsx("img", { src: "https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/applepay.svg", alt: "Apple Pay", className: "h-6" })] })] }) }) }) }));
-};
-export default Footer;
