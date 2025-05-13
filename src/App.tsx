@@ -25,6 +25,10 @@ import Categories from "./pages/Categories";
 import Orders from "./pages/Orders";
 import ProductDetail from "./pages/ProductDetail";
 import Reviews from "./pages/reviews/Review";
+import SearchResults from "./pages/searchResults/SearchResults";
+
+// Search context
+import { SearchProvider } from "./context/SearchContext"; // New import for search context
 
 // Protected route component with staff check
 const ProtectedRoute: React.FC<{
@@ -165,81 +169,84 @@ const AddressBookPage: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      <Routes>
-        {/* Dashboard routes with dashboard layout */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute
-              element={<DashboardLayout />}
-              requireAuth={true}
-              requireStaff={true}
+      <SearchProvider> {/* Add SearchProvider at top level */}
+        <Routes>
+          {/* Dashboard routes with dashboard layout */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute
+                element={<DashboardLayout />}
+                requireAuth={true}
+                requireStaff={true}
+              />
+            }
+          >
+            <Route index element={<Dashboard />} />
+            {/* Add other dashboard routes here */}
+            <Route path="products" element={<Products />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="reviews" element={<Reviews />} />
+            {/* Example: <Route path="products" element={<DashboardProducts />} /> */}
+          </Route>
+
+          {/* Frontend routes with frontend layout */}
+          <Route path="/" element={<FrontendLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="products" element={<AllProducts />} />
+            <Route path="search" element={<SearchResults />} /> {/* Add search results route */}
+
+            {/* Cart page wrapped with CheckoutProvider */}
+            <Route
+              path="cart"
+              element={
+                <CheckoutWrapper>
+                  <CartPage />
+                </CheckoutWrapper>
+              }
             />
-          }
-        >
-          <Route index element={<Dashboard />} />
-          {/* Add other dashboard routes here */}
-          <Route path="products" element={<Products />} />
-          <Route path="categories" element={<Categories />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="orders" element={<Orders />} />
-          <Route path="reviews" element={<Reviews />} />
-          {/* Example: <Route path="products" element={<DashboardProducts />} /> */}
-        </Route>
 
-        {/* Frontend routes with frontend layout */}
-        <Route path="/" element={<FrontendLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="products" element={<AllProducts />} />
+            <Route path="product/:id" element={<ProductDetail />} />
 
-          {/* Cart page wrapped with CheckoutProvider */}
-          <Route
-            path="cart"
-            element={
-              <CheckoutWrapper>
-                <CartPage />
-              </CheckoutWrapper>
-            }
-          />
+            {/* Checkout routes with provider */}
+            <Route
+              path="checkout"
+              element={
+                <CheckoutProvider>
+                  <CheckoutPage />
+                </CheckoutProvider>
+              }
+            />
 
-          <Route path="product/:id" element={<ProductDetail />} />
+            <Route
+              path="checkout/success"
+              element={
+                <CheckoutProvider>
+                  <CheckoutSuccess />
+                </CheckoutProvider>
+              }
+            />
 
-          {/* Checkout routes with provider */}
-          <Route
-            path="checkout"
-            element={
-              <CheckoutProvider>
-                <CheckoutPage />
-              </CheckoutProvider>
-            }
-          />
+            {/* Modified Account route to not require auth since AuthPage handles showing login */}
+            <Route
+              path="account"
+              element={
+                <ProtectedRoute element={<AccountPage />} requireAuth={false} />
+              }
+            />
 
-          <Route
-            path="checkout/success"
-            element={
-              <CheckoutProvider>
-                <CheckoutSuccess />
-              </CheckoutProvider>
-            }
-          />
+            <Route
+              path="account/addresses"
+              element={<ProtectedRoute element={<AddressBookPage />} />}
+            />
+          </Route>
 
-          {/* Modified Account route to not require auth since AuthPage handles showing login */}
-          <Route
-            path="account"
-            element={
-              <ProtectedRoute element={<AccountPage />} requireAuth={false} />
-            }
-          />
-
-          <Route
-            path="account/addresses"
-            element={<ProtectedRoute element={<AddressBookPage />} />}
-          />
-        </Route>
-
-        {/* Catch-all route redirects to home */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+          {/* Catch-all route redirects to home */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </SearchProvider>
     </ToastProvider>
   );
 };

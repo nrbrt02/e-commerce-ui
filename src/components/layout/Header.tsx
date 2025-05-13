@@ -1,31 +1,94 @@
 // src/components/layout/Header.tsx
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, KeyboardEvent, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { useSearch } from "../../context/SearchContext";
 import CartDropdown from "../cart/CartDropdown";
 
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
-  const { 
-    itemCount, 
-    isCartDropdownOpen, 
-    toggleCartDropdown, 
+  const {
+    itemCount,
+    isCartDropdownOpen,
+    toggleCartDropdown,
     closeCartDropdown,
     cartItems,
     updateQuantity,
-    removeItem 
+    removeItem,
   } = useCart();
+
+  const { query, setQuery, performSearch, loading } = useSearch();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Track if the user has manually changed the search input
+  const [userHasTyped, setUserHasTyped] = useState(false);
+  
+  // Track the previous pathname to detect navigation changes
+  const prevPathnameRef = useRef(location.pathname);
+
+  // Only set the query from URL when first loading the search page or 
+  // when navigating from another page to search
+  useEffect(() => {
+    const currentPathname = location.pathname;
+    const prevPathname = prevPathnameRef.current;
+    
+    // Update the previous pathname reference
+    prevPathnameRef.current = currentPathname;
+    
+    // If we're on the search page and either:
+    // 1. We just navigated to the search page from another page
+    // 2. This is the initial load of the component
+    if (currentPathname === "/search" && 
+        (prevPathname !== "/search" || !userHasTyped)) {
+        
+      const params = new URLSearchParams(location.search);
+      const queryParam = params.get("query");
+      
+      if (queryParam) {
+        console.log("Setting query from URL:", queryParam);
+        setQuery(queryParam);
+      }
+    }
+  }, [location.pathname, location.search, setQuery, userHasTyped]);
+
+  // Reset userHasTyped flag when navigating away from search
+  useEffect(() => {
+    if (location.pathname !== "/search") {
+      setUserHasTyped(false);
+    }
+  }, [location.pathname]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserHasTyped(true);
+    setQuery(e.target.value);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      performSearch();
+    }
+  };
+
+  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (query.trim()) {
+        performSearch();
+      }
+    }
+  };
 
   const handleAccountClick = () => {
     if (isAuthenticated) {
       setIsAccountDropdownOpen(!isAccountDropdownOpen);
     } else {
       // Navigate to account page instead of opening modal
-      navigate('/account');
+      navigate("/account");
     }
   };
 
@@ -36,18 +99,18 @@ const Header: React.FC = () => {
   const handleLogout = () => {
     logout();
     closeDropdown();
-    navigate('/');
+    navigate("/");
   };
 
   const navigateToAccount = () => {
     if (isAuthenticated) {
       if (user?.isStaff) {
-        navigate('/dashboard');
+        navigate("/dashboard");
       } else {
-        navigate('/account');
+        navigate("/account");
       }
     } else {
-      navigate('/account');
+      navigate("/account");
     }
     closeDropdown();
   };
@@ -57,10 +120,10 @@ const Header: React.FC = () => {
     if (user) {
       if (user.firstName) return user.firstName;
       if (user.username) return user.username;
-      if (user.email) return user.email.split('@')[0];
-      return 'User';
+      if (user.email) return user.email.split("@")[0];
+      return "User";
     }
-    return 'Guest';
+    return "Guest";
   };
 
   return (
@@ -77,18 +140,35 @@ const Header: React.FC = () => {
 
           {/* Search - Hidden on mobile, visible on desktop */}
           <div className="hidden md:flex flex-grow mx-10 max-w-2xl relative">
-            <div className="w-full">
+            <form onSubmit={handleSearchSubmit} className="w-full">
               <div className="relative w-full">
                 <input
                   type="text"
+                  value={query}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  // Add onFocus to indicate user interaction
+                  onFocus={() => {
+                    if (location.pathname === "/search") {
+                      setUserHasTyped(true);
+                    }
+                  }}
                   placeholder="Search for products, brands and more..."
-                  className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 bg-white text-gray-800 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition"
+                  className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
                 />
-                <button className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors duration-200">
-                  <i className="fas fa-search"></i>
+                <button
+                  type="submit"
+                  className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors"
+                  disabled={loading || !query.trim()}
+                >
+                  {loading ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fas fa-search"></i>
+                  )}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
 
           {/* Action Icons */}
@@ -128,15 +208,15 @@ const Header: React.FC = () => {
                     <p className="font-medium">Hi, {getDisplayName()}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
-                  
+
                   <button
                     onClick={navigateToAccount}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                   >
-                    <i className="fas fa-user-circle mr-2"></i> 
-                    {user?.isStaff ? 'Dashboard' : 'My Account'}
+                    <i className="fas fa-user-circle mr-2"></i>
+                    {user?.isStaff ? "Dashboard" : "My Account"}
                   </button>
-                  
+
                   {!user?.isStaff && (
                     <>
                       <Link
@@ -146,7 +226,7 @@ const Header: React.FC = () => {
                       >
                         <i className="fas fa-shopping-bag mr-2"></i> My Orders
                       </Link>
-                      
+
                       <Link
                         to="/account?tab=wishlist"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
@@ -156,9 +236,9 @@ const Header: React.FC = () => {
                       </Link>
                     </>
                   )}
-                  
+
                   <div className="border-t border-gray-100 my-1"></div>
-                  
+
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
@@ -198,9 +278,9 @@ const Header: React.FC = () => {
                 </div>
                 <span className="text-xs hidden sm:inline mt-1">Cart</span>
               </button>
-              
+
               {/* Cart Dropdown */}
-              <CartDropdown 
+              <CartDropdown
                 isOpen={isCartDropdownOpen}
                 onClose={closeCartDropdown}
                 cartItems={cartItems}
@@ -214,16 +294,35 @@ const Header: React.FC = () => {
         {/* Mobile search - only visible when toggled */}
         {isSearchOpen && (
           <div className="mt-3 md:hidden">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="w-full px-4 py-2 pr-10 rounded-lg border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-transparent"
-              />
-              <button className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors duration-200">
-                <i className="fas fa-search"></i>
-              </button>
-            </div>
+            <form onSubmit={handleSearchSubmit}>
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  // Add onFocus to indicate user interaction
+                  onFocus={() => {
+                    if (location.pathname === "/search") {
+                      setUserHasTyped(true);
+                    }
+                  }}
+                  placeholder="Search products..."
+                  className="w-full px-4 py-2 pr-10 rounded-lg border border-sky-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-transparent"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors duration-200"
+                  disabled={loading || !query.trim()}
+                >
+                  {loading ? (
+                    <i className="fas fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fas fa-search"></i>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>
