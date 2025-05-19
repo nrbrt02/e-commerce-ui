@@ -1,4 +1,3 @@
-// src/components/layout/Header.tsx
 import React, { useState, useEffect, KeyboardEvent, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -9,7 +8,7 @@ import CartDropdown from "../cart/CartDropdown";
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, openAuthModal } = useAuth();
   const {
     itemCount,
     isCartDropdownOpen,
@@ -87,8 +86,8 @@ const Header: React.FC = () => {
     if (isAuthenticated) {
       setIsAccountDropdownOpen(!isAccountDropdownOpen);
     } else {
-      // Navigate to account page instead of opening modal
-      navigate("/account");
+      // Open the customer login modal instead of navigating
+      openAuthModal('login', 'customer');
     }
   };
 
@@ -105,12 +104,18 @@ const Header: React.FC = () => {
   const navigateToAccount = () => {
     if (isAuthenticated) {
       if (user?.isStaff) {
-        navigate("/dashboard");
+        // Determine the proper dashboard based on user role
+        if (user.primaryRole === 'supplier' || user.role === 'supplier') {
+          navigate("/supplier");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         navigate("/account");
       }
     } else {
-      navigate("/account");
+      // Open the customer login modal instead of navigating
+      openAuthModal('login', 'customer');
     }
     closeDropdown();
   };
@@ -214,7 +219,10 @@ const Header: React.FC = () => {
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                   >
                     <i className="fas fa-user-circle mr-2"></i>
-                    {user?.isStaff ? "Dashboard" : "My Account"}
+                    {user?.isStaff ? 
+                      (user.primaryRole === 'supplier' || user.role === 'supplier') ? 
+                        "Supplier Dashboard" : "Admin Dashboard"
+                      : "My Account"}
                   </button>
 
                   {!user?.isStaff && (

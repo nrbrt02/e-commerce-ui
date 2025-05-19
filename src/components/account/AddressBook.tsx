@@ -518,7 +518,7 @@ const fetchAddresses = async () => {
       {!isLoading && addresses.length === 0 && !showForm && (
         <div className="text-center p-8 text-gray-500">
           <i className="fas fa-home text-4xl mb-3"></i>
-          <p>You don't have any saved addresses yet.</p>
+          <p>You don't have any saved addresses yetsssssssssssssssssssss.</p>
           <button
             onClick={handleAddAddress}
             className="mt-4 text-sky-600 hover:text-sky-800"

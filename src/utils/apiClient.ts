@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 const checkAndMigrateTokens = () => {
   // Alternative token keys that might be used in different parts of the app
   const possibleTokenKeys = [
-    'fast-shopping-auth-token',
+    'fast-shopping-auth-token', 
     'authToken',
     'fast-shopping-token'
   ];

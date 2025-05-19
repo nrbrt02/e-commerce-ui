@@ -1,7 +1,6 @@
-// src/components/auth/LoginForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, UserType } from '../../context/AuthContext';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
 interface LoginFormProps {
@@ -15,12 +14,17 @@ const LoginForm: React.FC<LoginFormProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isStaff, setIsStaff] = useState(false);
+  const [userType, setUserType] = useState<UserType>('customer');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const { login, error, clearError } = useAuth();
+  const { login, error, clearError, setUserType: setContextUserType } = useAuth();
   const navigate = useNavigate();
+
+  // Update context user type when local state changes
+  useEffect(() => {
+    setContextUserType(userType);
+  }, [userType, setContextUserType]);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -32,9 +36,9 @@ const LoginForm: React.FC<LoginFormProps> = ({
     clearError();
     
     try {
-      console.log('Attempting login with:', { email, password, isStaff });
+      console.log('Attempting login with:', { email, password, userType });
       // Wait for the login to complete - now using boolean return value
-      const isSuccess = await login(email, password, isStaff);
+      const isSuccess = await login(email, password, userType);
       
       // Clear form
       setEmail('');
@@ -46,11 +50,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
         
         // Using setTimeout to ensure state updates have propagated
         setTimeout(() => {
-          if (isStaff) {
-            console.log('Navigating staff user to dashboard');
+          if (userType === 'admin') {
+            console.log('Navigating admin user to dashboard');
             navigate('/dashboard');
+          } else if (userType === 'supplier') {
+            console.log('Navigating supplier user to dashboard/products');
+            navigate('/dashboard/products');
           } else {
-            console.log('Navigating regular user to account page');
+            console.log('Navigating customer user to account page');
             navigate('/account');
           }
         }, 500); // Increased timeout to give more time for auth state to update
@@ -146,22 +153,37 @@ const LoginForm: React.FC<LoginFormProps> = ({
         
         {/* User type selector */}
         <div className="mb-6">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isStaff"
-              checked={isStaff}
-              onChange={() => setIsStaff(!isStaff)}
-              className="h-4 w-4 text-sky-600 border-gray-300 rounded 
-                       focus:ring-sky-500"
-              disabled={isSubmitting}
-            />
-            <label 
-              htmlFor="isStaff"
-              className="ml-2 block text-sm text-gray-700"
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Login as
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <div
+              className={`border rounded-md p-3 text-center cursor-pointer transition-all 
+                         ${userType === "customer" 
+                          ? "border-sky-500 bg-sky-50 text-sky-700" 
+                          : "border-gray-300 hover:border-gray-400"}`}
+              onClick={() => setUserType("customer")}
             >
-              Login as Staff/Admin
-            </label>
+              Customer
+            </div>
+            <div
+              className={`border rounded-md p-3 text-center cursor-pointer transition-all 
+                         ${userType === "supplier" 
+                          ? "border-sky-500 bg-sky-50 text-sky-700" 
+                          : "border-gray-300 hover:border-gray-400"}`}
+              onClick={() => setUserType("supplier")}
+            >
+              Supplier
+            </div>
+            <div
+              className={`border rounded-md p-3 text-center cursor-pointer transition-all 
+                         ${userType === "admin" 
+                          ? "border-sky-500 bg-sky-50 text-sky-700" 
+                          : "border-gray-300 hover:border-gray-400"}`}
+              onClick={() => setUserType("admin")}
+            >
+              Admin
+            </div>
           </div>
         </div>
         
@@ -177,20 +199,22 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </button>
       </form>
       
-      {/* Register link */}
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600">
-          Don't have an account?{' '}
-          <button
-            type="button"
-            onClick={onSwitchToRegister}
-            className="text-sky-600 hover:text-sky-800 font-medium"
-            disabled={isSubmitting}
-          >
-            Sign Up
-          </button>
-        </p>
-      </div>
+      {/* Register link - only show for customer and supplier */}
+      {userType !== "admin" && (
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-sky-600 hover:text-sky-800 font-medium"
+              disabled={isSubmitting}
+            >
+              Sign Up
+            </button>
+          </p>
+        </div>
+      )}
     </div>
   );
 };

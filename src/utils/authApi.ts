@@ -1,4 +1,3 @@
-// src/utils/authApi.ts
 import { apiClient } from './apiClient';
 import { AUTH_TOKEN_KEY, AUTH_ENDPOINTS } from '../constants/auth-constants';
 
@@ -18,6 +17,22 @@ export interface LoginResponse {
       role?: string;
       [key: string]: any;
     };
+    customer?: {
+      id: number | string;
+      username: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      [key: string]: any;
+    };
+    supplier?: {
+      id: number | string;
+      username: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      [key: string]: any;
+    };
   };
   user?: {
     id: number | string;
@@ -27,6 +42,22 @@ export interface LoginResponse {
     lastName?: string;
     roles?: string[] | { name: string; permissions?: string[] }[];
     role?: string;
+    [key: string]: any;
+  };
+  customer?: {
+    id: number | string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    [key: string]: any;
+  };
+  supplier?: {
+    id: number | string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
     [key: string]: any;
   };
 }
@@ -54,8 +85,32 @@ export interface RegisterResponse {
       email: string;
       [key: string]: any;
     };
+    customer?: {
+      id: number | string;
+      username: string;
+      email: string;
+      [key: string]: any;
+    };
+    supplier?: {
+      id: number | string;
+      username: string;
+      email: string;
+      [key: string]: any;
+    };
   };
   user?: {
+    id: number | string;
+    username: string;
+    email: string;
+    [key: string]: any;
+  };
+  customer?: {
+    id: number | string;
+    username: string;
+    email: string;
+    [key: string]: any;
+  };
+  supplier?: {
     id: number | string;
     username: string;
     email: string;
@@ -83,22 +138,49 @@ export { AUTH_TOKEN_KEY };
 
 // Auth API service
 const authApi = {
-  login: async (email: string, password: string, isStaff: boolean = false): Promise<LoginResponse> => {
-    // Use endpoints from constants
-    const endpoint = !isStaff ? AUTH_ENDPOINTS.LOGIN : AUTH_ENDPOINTS.STAFF_LOGIN;
-    
+  // Customer login
+  loginCustomer: async (email: string, password: string): Promise<LoginResponse> => {
     try {
-      console.log(`Attempting login with email: ${email}, isStaff: ${isStaff}, endpoint: ${endpoint}`);
+      console.log(`Attempting customer login with email: ${email}`);
       
-      // Add timeout for better error handling
-      const response = await apiClient.post(endpoint, {
+      const response = await apiClient.post(AUTH_ENDPOINTS.CUSTOMER_LOGIN, {
         email,
         password,
-      }, { timeout: 10000 }); // 10 second timeout
+      }, { timeout: 10000 });
       
-      console.log('Login response received:', response.status);
+      console.log('Customer login response received:', response.status);
+      console.log('Response structure:', {
+        hasToken: !!response.data.token || !!(response.data.data && response.data.data.token),
+        hasCustomer: !!response.data.customer || !!(response.data.data && response.data.data.customer),
+        statusCode: response.status,
+        responseKeys: Object.keys(response.data)
+      });
       
-      // More detailed response logging (without sensitive data)
+      return response.data;
+    } catch (error: any) {
+      console.error('Customer login request failed:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      }
+      throw error;
+    }
+  },
+  
+  // Admin login
+  loginAdmin: async (email: string, password: string): Promise<LoginResponse> => {
+    try {
+      console.log(`Attempting admin login with email: ${email}`);
+      
+      const response = await apiClient.post(AUTH_ENDPOINTS.LOGIN, {
+        email,
+        password,
+      }, { timeout: 10000 });
+      
+      console.log('Admin login response received:', response.status);
       console.log('Response structure:', {
         hasToken: !!response.data.token || !!(response.data.data && response.data.data.token),
         hasUser: !!response.data.user || !!(response.data.data && response.data.data.user),
@@ -108,42 +190,90 @@ const authApi = {
       
       return response.data;
     } catch (error: any) {
-      console.error('Login request failed:', error);
-      
-      // Enhanced error logging
+      console.error('Admin login request failed:', error);
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         console.error('Error response:', {
           status: error.response.status,
-          data: error.response.data,
-          headers: error.response.headers
+          data: error.response.data
         });
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error('No response received:', error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error('Request setup error:', error.message);
       }
-      
       throw error;
     }
   },
   
-  // Register
-  register: async (data: RegisterData): Promise<RegisterResponse> => {
-    // Use endpoints from constants
-    const endpoint = !data.isStaff ? AUTH_ENDPOINTS.CUSTOMER_REGISTER : AUTH_ENDPOINTS.REGISTER;
-    
+  // Supplier login
+  loginSupplier: async (email: string, password: string): Promise<LoginResponse> => {
     try {
-      console.log(`Registering user with ${endpoint}`, { 
+      console.log(`Attempting supplier login with email: ${email}`);
+      
+      const response = await apiClient.post(AUTH_ENDPOINTS.SUPPLIER_LOGIN, {
+        email,
+        password,
+      }, { timeout: 10000 });
+      
+      console.log('Supplier login response received:', response.status);
+      console.log('Response structure:', {
+        hasToken: !!response.data.token || !!(response.data.data && response.data.data.token),
+        hasSupplier: !!response.data.supplier || !!(response.data.data && response.data.data.supplier),
+        statusCode: response.status,
+        responseKeys: Object.keys(response.data)
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Supplier login request failed:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw error;
+    }
+  },
+  
+  // Customer register
+  registerCustomer: async (data: RegisterData): Promise<RegisterResponse> => {
+    try {
+      console.log(`Registering customer`, { 
         ...data, 
         password: '[REDACTED]' 
       });
       
-      const response = await apiClient.post(endpoint, data, { timeout: 10000 });
-      console.log('Registration response:', {
+      const response = await apiClient.post(AUTH_ENDPOINTS.CUSTOMER_REGISTER, data, { timeout: 10000 });
+      console.log('Customer registration response:', {
+        status: response.status,
+        hasToken: !!response.data.token,
+        hasCustomer: !!response.data.customer || !!(response.data.data && response.data.data.customer)
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Customer registration request failed:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw error;
+    }
+  },
+  
+  // Admin register
+  registerAdmin: async (data: RegisterData): Promise<RegisterResponse> => {
+    try {
+      console.log(`Registering admin`, { 
+        ...data, 
+        password: '[REDACTED]' 
+      });
+      
+      const response = await apiClient.post(AUTH_ENDPOINTS.REGISTER, {
+        ...data,
+        role: 'admin'
+      }, { timeout: 10000 });
+      
+      console.log('Admin registration response:', {
         status: response.status,
         hasToken: !!response.data.token,
         hasUser: !!response.data.user || !!(response.data.data && response.data.data.user)
@@ -151,49 +281,122 @@ const authApi = {
       
       return response.data;
     } catch (error: any) {
-      console.error('Registration request failed:', error);
-      
-      // Enhanced error logging
+      console.error('Admin registration request failed:', error);
       if (error.response) {
         console.error('Error response:', {
           status: error.response.status,
           data: error.response.data
         });
       }
-      
       throw error;
     }
   },
   
-  // Forgot password
-  forgotPassword: async (email: string): Promise<ForgotPasswordResponse> => {
+  // Supplier register
+  registerSupplier: async (data: RegisterData): Promise<RegisterResponse> => {
     try {
-      const response = await apiClient.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { email });
+      console.log(`Registering supplier`, { 
+        ...data, 
+        password: '[REDACTED]' 
+      });
+      
+      const response = await apiClient.post(AUTH_ENDPOINTS.SUPPLIER_REGISTER, data, { timeout: 10000 });
+      
+      console.log('Supplier registration response:', {
+        status: response.status,
+        hasToken: !!response.data.token,
+        hasSupplier: !!response.data.supplier || !!(response.data.data && response.data.data.supplier)
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Supplier registration request failed:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw error;
+    }
+  },
+  
+  // Forgot password - Customer
+  forgotPasswordCustomer: async (email: string): Promise<ForgotPasswordResponse> => {
+    try {
+      const response = await apiClient.post(AUTH_ENDPOINTS.CUSTOMER_FORGOT_PASSWORD, { 
+        email,
+        userType: 'customer'
+      });
       return response.data;
     } catch (error) {
-      console.error('Forgot password request failed:', error);
+      console.error('Customer forgot password request failed:', error);
+      throw error;
+    }
+  },
+  
+  // Forgot password - Admin
+  forgotPasswordAdmin: async (email: string): Promise<ForgotPasswordResponse> => {
+    try {
+      const response = await apiClient.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { 
+        email,
+        userType: 'admin'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Admin forgot password request failed:', error);
+      throw error;
+    }
+  },
+  
+  // Forgot password - Supplier
+  forgotPasswordSupplier: async (email: string): Promise<ForgotPasswordResponse> => {
+    try {
+      const response = await apiClient.post(AUTH_ENDPOINTS.SUPPLIER_FORGOT_PASSWORD, { 
+        email,
+        userType: 'supplier'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Supplier forgot password request failed:', error);
       throw error;
     }
   },
   
   // Reset password
-  resetPassword: async (data: ResetPasswordData): Promise<ResetPasswordResponse> => {
+  resetPassword: async (data: ResetPasswordData, userType: string = 'customer'): Promise<ResetPasswordResponse> => {
+    const endpoint = 
+      userType === 'admin' ? AUTH_ENDPOINTS.RESET_PASSWORD :
+      userType === 'supplier' ? AUTH_ENDPOINTS.SUPPLIER_RESET_PASSWORD :
+      AUTH_ENDPOINTS.CUSTOMER_RESET_PASSWORD;
+    
     try {
-      const response = await apiClient.post(AUTH_ENDPOINTS.RESET_PASSWORD, data);
+      const response = await apiClient.post(endpoint, {
+        ...data,
+        userType
+      });
       return response.data;
     } catch (error) {
-      console.error('Reset password request failed:', error);
+      console.error(`${userType} reset password request failed:`, error);
       throw error;
     }
   },
   
   // Verify email
-  verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
+  verifyEmail: async (token: string, userType: string = 'customer'): Promise<{ success: boolean; message: string }> => {
+    const endpoint = 
+      userType === 'admin' ? AUTH_ENDPOINTS.VERIFY_EMAIL :
+      userType === 'supplier' ? AUTH_ENDPOINTS.SUPPLIER_VERIFY_EMAIL :
+      AUTH_ENDPOINTS.CUSTOMER_VERIFY_EMAIL;
+    
     try {
-      const response = await apiClient.post(AUTH_ENDPOINTS.VERIFY_EMAIL, { token });
+      const response = await apiClient.post(endpoint, { 
+        token,
+        userType
+      });
       return response.data;
     } catch (error) {
-      console.error('Email verification request failed:', error);
+      console.error(`${userType} email verification request failed:`, error);
       throw error;
     }
   },
