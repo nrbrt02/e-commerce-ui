@@ -1,20 +1,59 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ProductModal from '../../components/dashboard/ProductModal';
+import Products from '../Products'; 
 
 const SupplierProducts: React.FC = () => {
+  // State for modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState(null);
+  const [mode, setMode] = useState<'create' | 'edit'>('create');
+
   // Mock product data
-  const products = [
+  const [products, setProducts] = useState([
     { id: 1, name: 'Premium Laptop', sku: 'LP-001', price: 999.99, quantity: 25, status: 'Active' },
     { id: 2, name: 'Wireless Mouse', sku: 'MS-002', price: 29.99, quantity: 50, status: 'Active' },
     { id: 3, name: 'Bluetooth Headphones', sku: 'HP-003', price: 79.99, quantity: 15, status: 'Active' },
     { id: 4, name: 'USB-C Hub', sku: 'HB-004', price: 49.99, quantity: 5, status: 'Low Stock' },
     { id: 5, name: 'Mechanical Keyboard', sku: 'KB-005', price: 139.99, quantity: 0, status: 'Out of Stock' },
-  ];
+  ]);
+
+  // Handle opening modal for new product
+  const handleAddProduct = () => {
+    setMode('create');
+    setCurrentProduct(null);
+    setIsModalOpen(true);
+  };
+
+  // Handle opening modal for editing product
+  const handleEditProduct = (product: any) => {
+    setMode('edit');
+    setCurrentProduct(product);
+    setIsModalOpen(true);
+  };
+
+  // Handle saving product (both create and update)
+  const handleProductSaved = (savedProduct: any) => {
+    if (mode === 'create') {
+      setProducts([...products, savedProduct]);
+    } else {
+      setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p));
+    }
+    setIsModalOpen(false);
+  };
+
+  // Handle deleting product
+  const handleDeleteProduct = (productId: number) => {
+    setProducts(products.filter(p => p.id !== productId));
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Manage Products</h1>
-        <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+        <button 
+          onClick={handleAddProduct}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+        >
           Add New Product
         </button>
       </div>
@@ -114,8 +153,18 @@ const SupplierProducts: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                    <button className="text-red-600 hover:text-red-900">Delete</button>
+                    <button 
+                      onClick={() => handleEditProduct(product)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -136,7 +185,7 @@ const SupplierProducts: React.FC = () => {
             <div>
               <p className="text-sm text-gray-700">
                 Showing <span className="font-medium">1</span> to <span className="font-medium">5</span> of{' '}
-                <span className="font-medium">12</span> results
+                <span className="font-medium">{products.length}</span> results
               </p>
             </div>
             <div>
@@ -167,6 +216,18 @@ const SupplierProducts: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Product Modal */}
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        mode={mode}
+        productData={currentProduct}
+        onProductSaved={handleProductSaved}
+      />
+
+      {/* Products Grid View (optional - you can toggle between table and grid views) */}
+      {/* <Products /> */}
     </div>
   );
 };

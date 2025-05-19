@@ -73,7 +73,7 @@ const Products: React.FC = () => {
   const isAdmin = hasRole("admin");
   const isManager = !isAdmin && hasRole("manager");
   const isSuperAdmin = !isAdmin && !isManager && hasRole("superadmin");
-  // const isSupplier = !isAdmin && !isManager && hasRole("supplier");
+  const isSupplier = !isAdmin && !isManager && hasRole("supplier");
 
   // Fetch products data
   const fetchProducts = async () => {
@@ -435,7 +435,7 @@ const Products: React.FC = () => {
           </h1>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {(isSuperAdmin || isAdmin) && (
+            {isSupplier && (
               <button
                 onClick={openCreateModal}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"

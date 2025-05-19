@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useSearch } from "../../context/SearchContext";
 import CartDropdown from "../cart/CartDropdown";
+import { Search, User, Heart, ShoppingCart, LogOut, ChevronDown } from 'lucide-react';
 
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -22,39 +23,24 @@ const Header: React.FC = () => {
   const { query, setQuery, performSearch, loading } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Track if the user has manually changed the search input
   const [userHasTyped, setUserHasTyped] = useState(false);
-  
-  // Track the previous pathname to detect navigation changes
   const prevPathnameRef = useRef(location.pathname);
 
-  // Only set the query from URL when first loading the search page or 
-  // when navigating from another page to search
   useEffect(() => {
     const currentPathname = location.pathname;
     const prevPathname = prevPathnameRef.current;
-    
-    // Update the previous pathname reference
     prevPathnameRef.current = currentPathname;
     
-    // If we're on the search page and either:
-    // 1. We just navigated to the search page from another page
-    // 2. This is the initial load of the component
     if (currentPathname === "/search" && 
         (prevPathname !== "/search" || !userHasTyped)) {
-        
       const params = new URLSearchParams(location.search);
       const queryParam = params.get("query");
-      
       if (queryParam) {
-        console.log("Setting query from URL:", queryParam);
         setQuery(queryParam);
       }
     }
   }, [location.pathname, location.search, setQuery, userHasTyped]);
 
-  // Reset userHasTyped flag when navigating away from search
   useEffect(() => {
     if (location.pathname !== "/search") {
       setUserHasTyped(false);
@@ -82,11 +68,34 @@ const Header: React.FC = () => {
     }
   };
 
+  const getDashboardPath = () => {
+    if (!user) return '/account';
+    if (user.role === 'superAdmin' || user.primaryRole === 'superAdmin') {
+      return '/dashboard';
+    } else if (user.role === 'admin' || user.primaryRole === 'admin') {
+      return '/dashboard';
+    } else if (user.role === 'supplier' || user.primaryRole === 'supplier') {
+      return '/dashboard';
+    }
+    return '/account';
+  };
+
+  const getDashboardLabel = () => {
+    if (!user) return 'Account';
+    if (user.role === 'superAdmin' || user.primaryRole === 'superAdmin') {
+      return 'Admin Dashboard';
+    } else if (user.role === 'admin' || user.primaryRole === 'admin') {
+      return 'Admin Dashboard';
+    } else if (user.role === 'supplier' || user.primaryRole === 'supplier') {
+      return 'Supplier Portal';
+    }
+    return 'My Account';
+  };
+
   const handleAccountClick = () => {
     if (isAuthenticated) {
       setIsAccountDropdownOpen(!isAccountDropdownOpen);
     } else {
-      // Open the customer login modal instead of navigating
       openAuthModal('login', 'customer');
     }
   };
@@ -103,24 +112,13 @@ const Header: React.FC = () => {
 
   const navigateToAccount = () => {
     if (isAuthenticated) {
-      if (user?.isStaff) {
-        // Determine the proper dashboard based on user role
-        if (user.primaryRole === 'supplier' || user.role === 'supplier') {
-          navigate("/supplier");
-        } else {
-          navigate("/dashboard");
-        }
-      } else {
-        navigate("/account");
-      }
+      navigate(getDashboardPath());
     } else {
-      // Open the customer login modal instead of navigating
       openAuthModal('login', 'customer');
     }
     closeDropdown();
   };
 
-  // Get display name based on available user information
   const getDisplayName = () => {
     if (user) {
       if (user.firstName) return user.firstName;
@@ -135,7 +133,6 @@ const Header: React.FC = () => {
     <header className="bg-white shadow-md py-2 px-4 lg:px-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
               <span className="text-2xl font-bold text-sky-600">Fast</span>
@@ -143,7 +140,6 @@ const Header: React.FC = () => {
             </Link>
           </div>
 
-          {/* Search - Hidden on mobile, visible on desktop */}
           <div className="hidden md:flex flex-grow mx-10 max-w-2xl relative">
             <form onSubmit={handleSearchSubmit} className="w-full">
               <div className="relative w-full">
@@ -152,7 +148,6 @@ const Header: React.FC = () => {
                   value={query}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
-                  // Add onFocus to indicate user interaction
                   onFocus={() => {
                     if (location.pathname === "/search") {
                       setUserHasTyped(true);
@@ -166,28 +161,21 @@ const Header: React.FC = () => {
                   className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors"
                   disabled={loading || !query.trim()}
                 >
-                  {loading ? (
-                    <i className="fas fa-spinner fa-spin"></i>
-                  ) : (
-                    <i className="fas fa-search"></i>
-                  )}
+                  <Search size={18} />
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Action Icons */}
           <div className="flex items-center gap-4 sm:gap-6">
-            {/* Mobile search button */}
             <button
               className="md:hidden text-sky-700 hover:text-sky-900 transition-colors duration-200"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               aria-label="Toggle search"
             >
-              <i className="fas fa-search text-xl"></i>
+              <Search size={20} />
             </button>
 
-            {/* User account with login/account page link and dropdown */}
             <div className="relative">
               <button
                 onClick={handleAccountClick}
@@ -196,7 +184,7 @@ const Header: React.FC = () => {
                 aria-label={isAuthenticated ? "My Account" : "Login"}
               >
                 <div className="relative">
-                  <i className="fas fa-user text-xl group-hover:scale-110 transition-transform duration-200"></i>
+                  <User size={20} />
                   {isAuthenticated && (
                     <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>
                   )}
@@ -206,7 +194,6 @@ const Header: React.FC = () => {
                 </span>
               </button>
 
-              {/* Authenticated user dropdown */}
               {isAuthenticated && isAccountDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
                   <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
@@ -216,31 +203,30 @@ const Header: React.FC = () => {
 
                   <button
                     onClick={navigateToAccount}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                   >
-                    <i className="fas fa-user-circle mr-2"></i>
-                    {user?.isStaff ? 
-                      (user.primaryRole === 'supplier' || user.role === 'supplier') ? 
-                        "Supplier Dashboard" : "Admin Dashboard"
-                      : "My Account"}
+                    <User size={16} className="mr-2" />
+                    {getDashboardLabel()}
                   </button>
 
-                  {!user?.isStaff && (
+                  {!(user?.isStaff) && (
                     <>
                       <Link
                         to="/account?tab=orders"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                         onClick={closeDropdown}
                       >
-                        <i className="fas fa-shopping-bag mr-2"></i> My Orders
+                        <ShoppingCart size={16} className="mr-2" />
+                        My Orders
                       </Link>
 
                       <Link
                         to="/account?tab=wishlist"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                         onClick={closeDropdown}
                       >
-                        <i className="fas fa-heart mr-2"></i> Wishlist
+                        <Heart size={16} className="mr-2" />
+                        Wishlist
                       </Link>
                     </>
                   )}
@@ -249,27 +235,26 @@ const Header: React.FC = () => {
 
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-600 transition-colors duration-200"
                   >
-                    <i className="fas fa-sign-out-alt mr-2"></i> Logout
+                    <LogOut size={16} className="mr-2" />
+                    Logout
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Wishlist */}
             <Link
               to="/account?tab=wishlist"
               className="group flex flex-col items-center text-sky-700 hover:text-sky-900 transition-colors duration-200"
               aria-label="Wishlist"
             >
               <div className="relative">
-                <i className="fas fa-heart text-xl group-hover:scale-110 transition-transform duration-200"></i>
+                <Heart size={20} />
               </div>
               <span className="text-xs hidden sm:inline mt-1">Wishlist</span>
             </Link>
 
-            {/* Cart */}
             <div className="relative">
               <button
                 onClick={toggleCartDropdown}
@@ -277,7 +262,7 @@ const Header: React.FC = () => {
                 aria-label="Cart"
               >
                 <div className="relative">
-                  <i className="fas fa-shopping-cart text-xl group-hover:scale-110 transition-transform duration-200"></i>
+                  <ShoppingCart size={20} />
                   {itemCount > 0 && (
                     <span className="absolute -top-2 -right-2 bg-sky-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full animate-pulse">
                       {itemCount}
@@ -287,7 +272,6 @@ const Header: React.FC = () => {
                 <span className="text-xs hidden sm:inline mt-1">Cart</span>
               </button>
 
-              {/* Cart Dropdown */}
               <CartDropdown
                 isOpen={isCartDropdownOpen}
                 onClose={closeCartDropdown}
@@ -299,7 +283,6 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile search - only visible when toggled */}
         {isSearchOpen && (
           <div className="mt-3 md:hidden">
             <form onSubmit={handleSearchSubmit}>
@@ -309,7 +292,6 @@ const Header: React.FC = () => {
                   value={query}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
-                  // Add onFocus to indicate user interaction
                   onFocus={() => {
                     if (location.pathname === "/search") {
                       setUserHasTyped(true);
@@ -323,11 +305,7 @@ const Header: React.FC = () => {
                   className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors duration-200"
                   disabled={loading || !query.trim()}
                 >
-                  {loading ? (
-                    <i className="fas fa-spinner fa-spin"></i>
-                  ) : (
-                    <i className="fas fa-search"></i>
-                  )}
+                  <Search size={18} />
                 </button>
               </div>
             </form>
