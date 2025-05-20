@@ -12,6 +12,7 @@ import { ProductsTable } from "./ProductsTable";
 import { ProductsTableLoading } from "./ProductsTableLoading";
 import { ProductsEmptyState } from "./ProductsEmptyState";
 import { ProductsPagination } from "./ProductsPagination";
+import { AUTH_TOKEN_KEY } from "../../constants/auth-constants";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -75,7 +76,20 @@ const Products: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get(`${API_BASE_URL}/products`, {
+      let url = `${API_BASE_URL}/products`;
+      
+      // If user is a supplier, fetch their specific products
+      if (isSupplier && user?.id) {
+        url = `${API_BASE_URL}/suppliers/${user.id}/products`;
+      } else if (isAdmin || hasRole('superadmin')) {
+        // Use the admin endpoint for administrators and superadmins
+        url = `${API_BASE_URL}/products/admin/all`;
+      }
+
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+        },
         params: {
           search: searchTerm,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
@@ -84,25 +98,27 @@ const Products: React.FC = () => {
         },
       });
 
-      const fetchedProducts = response.data.data.products.map(
-        (product: any) => ({
-          ...product,
-          status: getProductStatus(product),
-          category:
-            product.categories?.length > 0
-              ? product.categories[0].name
-              : "Uncategorized",
-          stock: product.quantity,
-        })
-      );
+      // Handle different response structures
+      const productsData = response.data.data?.products || response.data.products || [];
+      const paginationData = response.data.pagination || response.data;
+
+      const fetchedProducts = productsData.map((product: any) => ({
+        ...product,
+        status: getProductStatus(product),
+        category:
+          product.categories?.length > 0
+            ? product.categories[0].name
+            : "Uncategorized",
+        stock: product.quantity,
+      }));
 
       setProducts(fetchedProducts);
-      setTotalProducts(response.data.pagination.totalProducts);
-      setTotalPages(response.data.pagination.totalPages);
+      setTotalProducts(paginationData.totalProducts || paginationData.total || 0);
+      setTotalPages(paginationData.totalPages || Math.ceil((paginationData.total || 0) / resultsPerPage));
 
       const uniqueCategories = Array.from(
         new Map(
-          response.data.data.products
+          productsData
             .flatMap((p: Product) => p.categories || [])
             .map((cat: any) => [cat.id.toString(), cat])
         ).values()
@@ -121,7 +137,7 @@ const Products: React.FC = () => {
       console.error("Error fetching products:", err);
       setError(err.response?.data?.message || "Failed to load products");
       setIsLoading(false);
-      showToast.error("Failed to load products");
+      showToast.error(err.response?.data?.message || "Failed to load products");
     }
   };
 
@@ -160,7 +176,11 @@ const Products: React.FC = () => {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/products/${productId}`);
+      await axios.delete(`${API_BASE_URL}/products/${productId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+        },
+      });
       setProducts(products.filter((product) => product.id !== productId));
       showToast.success("Product deleted successfully");
     } catch (err: any) {
@@ -179,7 +199,12 @@ const Products: React.FC = () => {
         isPublished: !product.isPublished,
       };
 
-      await axios.put(`${API_BASE_URL}/products/${product.id}`, updatedProduct);
+      await axios.put(`${API_BASE_URL}/products/${product.id}`, updatedProduct, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+          'X-User-Role': user?.role || user?.primaryRole,
+        },
+      });
       setProducts(
         products.map((p) =>
           p.id === product.id ? { ...p, isPublished: !p.isPublished } : p
@@ -206,7 +231,12 @@ const Products: React.FC = () => {
         isFeatured: !product.isFeatured,
       };
 
-      await axios.put(`${API_BASE_URL}/products/${product.id}`, updatedProduct);
+      await axios.put(`${API_BASE_URL}/products/${product.id}`, updatedProduct, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+          'X-User-Role': user?.role || user?.primaryRole,
+        },
+      });
       setProducts(
         products.map((p) =>
           p.id === product.id ? { ...p, isFeatured: !p.isFeatured } : p

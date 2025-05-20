@@ -35,7 +35,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   
   // Determine active path
   const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+    if (path === '/dashboard') {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
   };
   
   // Get user role (default to supplier if no role specified)
