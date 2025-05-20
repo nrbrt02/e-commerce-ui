@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import { Product } from '../../types/ProductTypes';
 import { AUTH_TOKEN_KEY } from "../../constants/auth-constants";
+import { toast } from "react-toastify";
 // API base URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -29,6 +30,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
   onProductSaved,
 }) => {
   const { user } = useAuth();
+  const isSupplier = user?.primaryRole === 'supplier' || user?.role === 'supplier';
   const [formData, setFormData] = useState<Product>({
     name: "",
     description: "",
@@ -71,9 +73,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
   // Fill form when editing an existing product
   useEffect(() => {
     if (mode === "edit" && productData) {
+      // Extract category IDs from the product data
+      const categoryIds = productData.categories?.map(cat => cat.id) || [];
+      
       setFormData({
         ...productData,
-        categoryIds: productData.categoryIds || [],
+        categoryIds: categoryIds,
         tags: productData.tags || [],
         imageUrls: productData.imageUrls || [],
       });
@@ -134,12 +139,21 @@ const ProductModal: React.FC<ProductModalProps> = ({
   const parseImageUrl = (imgUrl: string) => {
     try {
       if (typeof imgUrl === "string") {
-        // Check if it's already a valid URL
+        // If it's already a valid URL, return it
         if (imgUrl.startsWith("http")) return imgUrl;
 
         // Try to parse it as JSON
         const parsed = JSON.parse(imgUrl);
-        return parsed.url || "";
+        if (parsed.url) {
+          // If the url itself is a JSON string, parse it again
+          try {
+            const innerParsed = JSON.parse(parsed.url);
+            return innerParsed.url || parsed.url;
+          } catch {
+            return parsed.url;
+          }
+        }
+        return "";
       }
       return "";
     } catch (error) {
@@ -261,23 +275,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
       imageUrlInput.trim() &&
       !formData.imageUrls?.includes(imageUrlInput.trim())
     ) {
-      // Create standard object if needed to ensure consistency
-      let imageUrl = imageUrlInput.trim();
-
-      // If not already an HTTP URL, try to format as a JSON object with url property
-      if (!imageUrl.startsWith("http")) {
-        try {
-          // Check if already a JSON string
-          JSON.parse(imageUrl);
-        } catch (e) {
-          // Not JSON, so wrap it as a simple URL object
-          imageUrl = JSON.stringify({ url: imageUrl });
-        }
-      }
+      // Format the URL as a JSON string with url property
+      const formattedUrl = JSON.stringify({ url: imageUrlInput.trim() });
 
       setFormData({
         ...formData,
-        imageUrls: [...(formData.imageUrls || []), imageUrl],
+        imageUrls: [...(formData.imageUrls || []), formattedUrl],
       });
       setImageUrlInput("");
     }
@@ -301,95 +304,60 @@ const ProductModal: React.FC<ProductModalProps> = ({
     });
   };
 
-  // Submit the form
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // Validate form first
-  if (!validateForm()) {
-    // Show error message and highlight the correct tab
-    const errorFields = Object.keys(formErrors);
-    if (
-      errorFields.includes("name") ||
-      errorFields.includes("description") ||
-      errorFields.includes("shortDescription")
-    ) {
-      setActiveTab("basic");
-    } else if (
-      errorFields.includes("sku") ||
-      errorFields.includes("price") ||
-      errorFields.includes("quantity")
-    ) {
-      setActiveTab("inventory");
-    } else if (errorFields.includes("imageUrls")) {
-      setActiveTab("media");
-    }
-    return;
-  }
-
-  setIsLoading(true);
-  setError(null);
-
-  try {
-    // Use the same AUTH_TOKEN_KEY constant that's used in your AuthContext
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    const headers = {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    // Prepare the product data for submission
-    const productPayload = {
-      name: formData.name,
-      description: formData.description,
-      shortDescription: formData.shortDescription,
-      sku: formData.sku,
-      barcode: formData.barcode,
-      price: formData.price,
-      compareAtPrice: formData.compareAtPrice,
-      costPrice: formData.costPrice,
-      isPublished: formData.isPublished,
-      isFeatured: formData.isFeatured,
-      isDigital: formData.isDigital,
-      quantity: formData.quantity,
-      lowStockThreshold: formData.lowStockThreshold,
-      weight: formData.weight,
-      dimensions: formData.dimensions,
-      tags: formData.tags,
-      categoryIds: formData.categoryIds,
-      images: formData.imageUrls?.map((url) => ({ url })),
-      supplierId: formData.supplierId,
-    };
-
-    let savedProduct;
-
-    if (mode === "create") {
-      const response = await axios.post(
-        `${API_BASE_URL}/products`,
-        productPayload,
-        { headers }
-      );
-      savedProduct = response.data.data;
-    } else {
-      if (!formData.id) throw new Error("Product ID required for update");
-      const response = await axios.put(
-        `${API_BASE_URL}/products/${formData.id}`,
-        productPayload,
-        { headers }
-      );
-      savedProduct = response.data.data;
+    if (!validateForm()) {
+      return;
     }
 
-    onProductSaved(savedProduct);
-  } catch (err: any) {
-    console.error("Error saving product:", err);
-    setError(
-      err.response?.data?.message || err.message || "Failed to save product"
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const productData = {
+        ...formData,
+        // Ensure categoryIds is an array of numbers
+        categoryIds: formData.categoryIds?.map(id => Number(id)) || [],
+        // Send imageUrls as images to match backend expectation
+        images: formData.imageUrls?.filter(url => url.trim() !== '') || [],
+      };
+
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+        'Content-Type': 'application/json',
+      };
+
+      let response;
+      if (mode === "create") {
+        response = await axios.post(`${API_BASE_URL}/products`, productData, { headers });
+      } else {
+        response = await axios.put(
+          `${API_BASE_URL}/products/${productData.id}`,
+          productData,
+          { headers }
+        );
+      }
+
+      onProductSaved(response.data.data.product);
+      onClose();
+      toast.success(
+        `Product ${mode === "create" ? "created" : "updated"} successfully`
+      );
+    } catch (err: any) {
+      console.error(`Error ${mode === "create" ? "creating" : "updating"} product:`, err);
+      setError(
+        err.response?.data?.message ||
+          `Failed to ${mode === "create" ? "create" : "update"} product`
+      );
+      toast.error(
+        `Failed to ${mode === "create" ? "create" : "update"} product`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Get error class for form inputs
   const getInputErrorClass = (fieldName: string) => {
@@ -682,7 +650,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             Published
                           </label>
                         </div>
-                        {isStaff && (
+                        {!isSupplier && (
                           <div className="flex items-center">
                             <input
                               id="isFeatured"
@@ -700,7 +668,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                             </label>
                           </div>
                         )}
-                        ;
                         <div className="flex items-center">
                           <input
                             id="isDigital"

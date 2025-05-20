@@ -1,6 +1,7 @@
 import { Product } from "../../types/ProductTypes";
 import { ProductsTableRow } from "./ProductsTableRow";
 import { ProductsTableLoading } from "./ProductsTableLoading";
+import { useAuth } from "../../context/AuthContext";
 
 interface ProductsTableProps {
   products: Product[];
@@ -27,6 +28,9 @@ export const ProductsTable = ({
   formatPrice,
   parseImageUrl,
 }: ProductsTableProps) => {
+  const { user } = useAuth();
+  const isSupplier = user?.primaryRole === 'supplier' || user?.role === 'supplier';
+
   if (isLoading) {
     return <ProductsTableLoading />;
   }
@@ -72,6 +76,14 @@ export const ProductsTable = ({
             >
               Visibility
             </th>
+            {!isSupplier && (
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell"
+              >
+                Featured
+              </th>
+            )}
             <th
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -93,6 +105,7 @@ export const ProductsTable = ({
               getStatusBadgeClass={getStatusBadgeClass}
               formatPrice={formatPrice}
               parseImageUrl={parseImageUrl}
+              isSupplier={isSupplier}
             />
           ))}
         </tbody>

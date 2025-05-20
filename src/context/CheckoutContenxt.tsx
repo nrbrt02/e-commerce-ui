@@ -11,6 +11,7 @@ import { useAuth } from "./AuthContext";
 import orderApi from "../utils/orderApi";
 import { addressApi, Address, AddressFormData } from "../utils/addressApi";
 import { showToast } from "../components/ui/ToastProvider";
+import { convertCurrency, formatCurrency, getPayPalAmount } from '../utils/currencyUtils';
 
 export type PaymentStatus =
   | "pending"
@@ -77,6 +78,7 @@ export interface DraftOrder {
   notes?: string;
   status?: string;
   orderNumber?: string;
+  lastUpdated?: string;
 }
 
 interface CheckoutContextType {
@@ -146,6 +148,13 @@ interface CheckoutContextType {
   orderTotal: number;
   items: any[];
   handlePlaceOrder: () => Promise<void>;
+
+  convertedAmount: {
+    amount: number;
+    formattedAmount: string;
+  } | null;
+
+  draftOrderStatus: 'saving' | 'saved' | 'error' | null;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(
@@ -238,6 +247,15 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const draftOrderCreatedRef = useRef(false);
   const isCreatingDraftOrder = useRef(false);
+
+  // Add new state for currency conversion
+  const [convertedAmount, setConvertedAmount] = useState<{
+    amount: number;
+    formattedAmount: string;
+  } | null>(null);
+
+  // Add new state for draft order status
+  const [draftOrderStatus, setDraftOrderStatus] = useState<'saving' | 'saved' | 'error' | null>(null);
 
   // Helper functions
   const clearErrors = () => setErrors([]);
@@ -433,185 +451,83 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const createDraftOrder = useCallback(async (): Promise<DraftOrder> => {
-    // Prevent multiple simultaneous calls
     if (isCreatingDraftOrder.current) {
-      console.log("Draft order creation already in progress");
-      return new Promise((resolve) => {
-        const checkDraftOrder = setInterval(() => {
-          if (!isCreatingDraftOrder.current && draftOrder) {
-            clearInterval(checkDraftOrder);
-            resolve(draftOrder);
-          }
-        }, 100);
-      });
+      return draftOrder as DraftOrder;
     }
-
-    isCreatingDraftOrder.current = true;
 
     try {
-      clearErrors();
+      isCreatingDraftOrder.current = true;
+      setDraftOrderStatus('saving');
 
-      // Check for existing draft first
-      const existingDraftId = localStorage.getItem("checkoutDraftOrderId");
-      if (existingDraftId && existingDraftId !== "undefined") {
-        try {
-          console.log("Checking for existing draft order:", existingDraftId);
-          const existingOrder = await orderApi.getDraftOrder(existingDraftId);
-          if (existingOrder) {
-            console.log("Existing draft order found:", existingOrder);
-            setDraftOrder(existingOrder);
-            if (existingOrder.paymentStatus) {
-              setPaymentStatus(existingOrder.paymentStatus);
-            }
-            isCreatingDraftOrder.current = false;
-            return existingOrder;
-          }
-        } catch (error) {
-          console.error("Error loading existing draft:", error);
-          localStorage.removeItem("checkoutDraftOrderId");
-        }
-      }
-
-      // If we have a draftOrder in state already, return it
-      if (draftOrder && draftOrder.id) {
-        console.log("Using draft order from state:", draftOrder);
-        isCreatingDraftOrder.current = false;
-        return draftOrder;
-      }
-
-      // Get cart items
-      let itemsToProcess = [...cartContext.cartItems];
-
-      if (itemsToProcess.length === 0) {
-        console.log("No items in cart context, checking localStorage");
-        const savedCart = localStorage.getItem("fastShoppingCart");
-        if (savedCart) {
-          const parsedCart = JSON.parse(savedCart);
-          if (Array.isArray(parsedCart) && parsedCart.length > 0) {
-            console.log("Found items in localStorage:", parsedCart.length);
-            itemsToProcess = parsedCart;
-          }
-        }
-      }
-
-      setCartItems(itemsToProcess);
-
-      if (itemsToProcess.length === 0) {
-        console.error("No items in cart");
-        throw new Error("Your cart is empty");
-      }
-
-      // Calculate order totals
-      const orderItems = orderApi.transformCartToOrderItems(itemsToProcess);
-      const subtotal = itemsToProcess.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-      );
-      const tax = subtotal * 0.18; // 18% VAT
-      const shipping = 0; // Free shipping for now
-
-      // Update state with calculated values
-      setTotalAmount(subtotal);
-      setTaxAmount(tax);
-      setShippingCost(shipping);
-      setTotalOrderAmount(subtotal + tax + shipping);
-
-      const draftData: Partial<DraftOrder> = {
-        items: orderItems,
-        subtotal,
-        tax,
-        shipping,
-        total: subtotal + tax + shipping,
-        paymentStatus: "pending",
-        shippingMethod: "standard", // Default to standard shipping
-        status: "draft",
+      const draftOrderData: DraftOrder = {
+        items: cartItems,
+        subtotal: totalAmount,
+        tax: taxAmount,
+        shipping: shippingCost,
+        total: totalOrderAmount,
+        shippingAddress: addressData,
+        billingAddress: useSameAddressForBilling ? addressData : undefined,
+        shippingMethod: selectedShippingMethod,
+        paymentMethod: selectedPaymentMethod,
+        status: 'draft',
+        orderNumber: `DRAFT-${Date.now()}`,
+        lastUpdated: new Date().toISOString()
       };
 
-      console.log("Creating draft order with:", draftData);
+      // Create draft order using the API
+      const createdDraft = await orderApi.createDraftOrder(draftOrderData);
+      
+      // Update state with the created draft
+      setDraftOrder(createdDraft);
+      setDraftOrderStatus('saved');
 
-      // Create the draft order via API
-      const newDraftOrder = await orderApi.createDraftOrder(draftData);
-      console.log("Draft order created:", newDraftOrder);
-
-      // Save the new draft order to state
-      setDraftOrder(newDraftOrder);
-
-      // Store the ID in localStorage
-      if (newDraftOrder && newDraftOrder.id) {
-        localStorage.setItem("checkoutDraftOrderId", String(newDraftOrder.id));
-        draftOrderCreatedRef.current = true;
-        console.log("Draft order ID saved to localStorage:", newDraftOrder.id);
-      } else {
-        console.error("No ID found in draft order response:", newDraftOrder);
-      }
-
-      isCreatingDraftOrder.current = false;
-      return newDraftOrder;
+      return createdDraft;
     } catch (error) {
-      console.error("Error creating draft order:", error);
-      setErrors((prev) => [
-        ...prev,
-        error instanceof Error
-          ? error.message
-          : "Failed to create order. Please try again.",
-      ]);
+      console.error('Error creating draft order:', error);
+      setDraftOrderStatus('error');
+      throw error;
+    } finally {
       isCreatingDraftOrder.current = false;
+    }
+  }, [
+    cartItems,
+    totalAmount,
+    taxAmount,
+    shippingCost,
+    totalOrderAmount,
+    addressData,
+    useSameAddressForBilling,
+    selectedShippingMethod,
+    selectedPaymentMethod,
+  ]);
+
+  const updateDraftOrder = useCallback(async (updateData: Partial<DraftOrder>): Promise<DraftOrder> => {
+    try {
+      setDraftOrderStatus('saving');
+      
+      const updatedDraft: DraftOrder = {
+        ...draftOrder!,
+        ...updateData,
+        lastUpdated: new Date().toISOString(),
+        items: updateData.items || draftOrder!.items,
+        subtotal: updateData.subtotal ?? draftOrder!.subtotal,
+        tax: updateData.tax ?? draftOrder!.tax,
+        shipping: updateData.shipping ?? draftOrder!.shipping,
+        total: updateData.total ?? draftOrder!.total,
+      };
+
+      // Save updated draft to localStorage
+      localStorage.setItem('checkoutDraftOrderId', JSON.stringify(updatedDraft));
+      setDraftOrder(updatedDraft);
+      setDraftOrderStatus('saved');
+
+      return updatedDraft;
+    } catch (error) {
+      console.error('Error updating draft order:', error);
+      setDraftOrderStatus('error');
       throw error;
     }
-  }, [cartContext.cartItems, draftOrder, clearErrors]);
-
-  const updateDraftOrder = useCallback(
-    async (updateData: Partial<DraftOrder>): Promise<DraftOrder> => {
-      try {
-        // Get draft order ID from localStorage, not from state
-        const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
-
-        // If payment details are being updated but status isn't provided, set to pending
-        const updatedData = { ...updateData };
-        if (updateData.paymentDetails && !updateData.paymentStatus) {
-          updatedData.paymentStatus = "pending";
-          setPaymentStatus("pending");
-        }
-
-        if (!draftOrderId || draftOrderId === "undefined") {
-          console.log("No draft ID found in localStorage, creating new draft");
-          return await createDraftOrder();
-        }
-
-        // If we get here, we have a valid draft ID in localStorage
-        console.log(`Updating draft order ${draftOrderId} with:`, updatedData);
-
-        try {
-          // Make the API call to update the draft order
-          const updatedDraft = await orderApi.updateDraftOrder(
-            draftOrderId,
-            updatedData
-          );
-          console.log("Draft order updated:", updatedDraft);
-
-          // Update the state with the new draft order
-          setDraftOrder(updatedDraft);
-
-          // Update payment status if it was changed
-          if (updatedData.paymentStatus) {
-            setPaymentStatus(updatedData.paymentStatus);
-          }
-
-          return updatedDraft;
-        } catch (apiError) {
-          console.error("API error updating draft order:", apiError);
-          // Try again with a new draft order if API fails
-          console.log("Creating new draft order as fallback...");
-          return await createDraftOrder();
-        }
-      } catch (error) {
-        console.error("Error updating draft order:", error);
-        setErrors((prev) => [...prev, "Failed to update order"]);
-        throw error;
-      }
-    },
-    [createDraftOrder, setErrors, setPaymentStatus]
-  );
+  }, [draftOrder]);
 
   const goToNextStep = useCallback(async () => {
     try {
@@ -719,199 +635,95 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     updateDraftOrder,
   ]);
 
-  const handlePaymentCompletion = useCallback(
-    async (
-      paymentData: any,
-      newPaymentStatus: PaymentStatus,
-      paymentMethod: string
-    ): Promise<boolean> => {
-      try {
-        console.log("Starting payment completion handler");
+  const handlePaymentCompletion = useCallback(async (
+    paymentData: any,
+    newPaymentStatus: PaymentStatus,
+    paymentMethod: string
+  ): Promise<boolean> => {
+    try {
+      setIsProcessingOrder(true);
 
-        // Get the draft order ID
-        const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
-        if (!draftOrderId || draftOrderId === "undefined") {
-          console.error("No draft order ID found in localStorage");
-          setErrors(["Order information not found. Please try again."]);
-          return false;
-        }
-
-        // Create the update data object
-        const updateData: Partial<DraftOrder> = {
-          paymentMethod,
-          paymentDetails: paymentData,
-          paymentStatus: newPaymentStatus,
-        };
-
-        console.log("Update data for draft order:", updateData);
-
-        // Update the draft order via API
-        const updatedDraft = await orderApi.updateDraftOrder(
-          draftOrderId,
-          updateData
-        );
-        console.log("Draft order updated:", updatedDraft);
-
-        // Update local state
-        setDraftOrder((prev) => (prev ? { ...prev, ...updateData } : null));
-        setPaymentStatus(newPaymentStatus);
-        setPaymentDetails(paymentData);
-
-        // For successful payments, navigate to review step
-        if (newPaymentStatus === "paid" || newPaymentStatus === "authorized") {
-          console.log("Payment successful, navigating to review step");
-          setActiveStep(3); // Review step
-          return true;
-        }
-
-        return false;
-      } catch (error) {
-        console.error("Error handling payment completion:", error);
-        setErrors([
-          "Failed to update order with payment details. Please try again.",
-        ]);
-        return false;
+      // Convert amount for PayPal
+      if (paymentMethod === 'paypal') {
+        const converted = await getPayPalAmount(totalOrderAmount);
+        setConvertedAmount(converted);
       }
-    },
-    [setActiveStep, setErrors, setPaymentStatus, setPaymentDetails]
-  );
+
+      // Update draft order with payment information
+      await updateDraftOrder({
+        paymentStatus: newPaymentStatus,
+        paymentDetails: paymentData,
+      });
+
+      setPaymentStatus(newPaymentStatus);
+      return true;
+    } catch (error) {
+      console.error('Error handling payment completion:', error);
+      setErrors(['Payment processing failed. Please try again.']);
+      return false;
+    } finally {
+      setIsProcessingOrder(false);
+    }
+  }, [totalOrderAmount, updateDraftOrder]);
 
   const submitOrder = useCallback(async () => {
     try {
-      clearErrors();
       setIsProcessingOrder(true);
 
-      // Get draft order ID from localStorage
-      const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
-
-      if (!draftOrderId || draftOrderId === "undefined") {
-        console.error("No draft order ID found in localStorage");
-        showToast.error(
-          "No draft order to submit. Please try again or return to cart."
-        );
-        throw new Error(
-          "No draft order to submit. Please try again or return to cart."
-        );
+      // Validate all required data
+      if (!await validateAddress() || !await validatePayment()) {
+        return;
       }
 
-      // Validate order data
-      if (
-        !addressData.firstName ||
-        !addressData.lastName ||
-        !addressData.email ||
-        !addressData.phone ||
-        !addressData.address ||
-        !addressData.city ||
-        !addressData.state ||
-        !addressData.country
-      ) {
-        showToast.error("Please complete your shipping information");
-        throw new Error("Please complete your shipping information");
+      // Convert amount for PayPal if needed
+      let finalAmount = totalOrderAmount;
+      if (selectedPaymentMethod === 'paypal') {
+        const converted = await getPayPalAmount(totalOrderAmount);
+        finalAmount = converted.amount;
       }
 
-      // Validate payment status for payment methods that require pre-authorization
-      if (
-        selectedPaymentMethod === "paypal" ||
-        selectedPaymentMethod === "card"
-      ) {
-        if (paymentStatus !== "paid" && paymentStatus !== "authorized") {
-          showToast.error(
-            "Please complete the payment process before placing your order"
-          );
-          throw new Error(
-            "Please complete the payment process before placing your order"
-          );
-        }
-      }
+      // Update draft order with final data
+      const updatedDraft = await updateDraftOrder({
+        total: finalAmount,
+        status: 'pending',
+        paymentStatus: paymentStatus,
+        paymentDetails: paymentData,
+      });
 
-      // First, update the draft with final data
-      const updateData = {
-        shippingAddress: addressData,
-        billingAddress: addressData,
-        shippingMethod: selectedShippingMethod,
-        paymentMethod: selectedPaymentMethod,
-        paymentDetails:
-          selectedPaymentMethod === "card"
-            ? {
-                cardNumber: paymentData.cardNumber?.replace(/\D/g, "").slice(-4),
-                cardholderName: paymentData.cardName,
-                expiryDate: paymentData.expiryDate,
-              }
-            : {},
-        // Only auto-mark as paid for cash on delivery or bank transfer
-        // For paypal and credit card, use the existing payment status
-        paymentStatus:
-          selectedPaymentMethod === "cod" ||
-          selectedPaymentMethod === "bank_transfer"
-            ? "pending"
-            : paymentStatus,
-      };
+      // Convert draft to final order
+      const response = await orderApi.convertDraftToOrder(updatedDraft.id!);
 
-      console.log(
-        `Updating draft order ${draftOrderId} with final data:`,
-        updateData
-      );
+      // Clear draft order
+      localStorage.removeItem('checkoutDraftOrderId');
+      setDraftOrder(null);
 
-      await orderApi.updateDraftOrder(draftOrderId, updateData);
-      localStorage.removeItem("paypal_payment_response");
-      console.log(`Converting draft order ${draftOrderId} to a real order`);
-      const finalOrder = await orderApi.convertDraftToOrder(draftOrderId);
-      console.log("Final order created:", finalOrder);
-
-      // Save address if requested by user
-      if (isAuthenticated && addressData.saveAddress) {
-        try {
-          const apiAddress = addressApi.transformFormToApiAddress(addressData);
-          await addressApi.saveAddress(apiAddress);
-        } catch (err) {
-          console.error("Error saving address:", err);
-        }
-      }
-
-      // Show success message
-      showToast.success("Order placed successfully!");
-
-      // Update state to show order completion
+      setOrderDetails(response);
       setOrderComplete(true);
-      setOrderDetails(finalOrder);
-
-      // Clear cart and references
-      cartContext.clearCart();
-      draftOrderCreatedRef.current = false;
-      localStorage.removeItem("checkoutDraftOrderId");
-
-      return finalOrder;
+      return response;
     } catch (error) {
-      console.error("Error submitting order:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to submit order";
-      showToast.error(errorMessage);
-      setErrors((prev) => [...prev, errorMessage]);
+      console.error('Error submitting order:', error);
+      setErrors(['Failed to submit order. Please try again.']);
       throw error;
     } finally {
       setIsProcessingOrder(false);
     }
   }, [
-    addressData,
-    selectedShippingMethod,
+    validateAddress,
+    validatePayment,
+    totalOrderAmount,
     selectedPaymentMethod,
-    paymentData,
     paymentStatus,
-    isAuthenticated,
-    cartContext,
-    clearErrors,
+    paymentData,
+    updateDraftOrder,
   ]);
 
   const processOrder = useCallback(async () => {
     try {
-      setIsProcessingOrder(true);
       const result = await submitOrder();
       return result;
     } catch (error) {
       console.error("Error processing order:", error);
       throw error;
-    } finally {
-      setIsProcessingOrder(false);
     }
   }, [submitOrder]);
 
@@ -1133,6 +945,9 @@ const value: CheckoutContextType = {
   orderTotal: totalOrderAmount,
   items: cartItems, 
   handlePlaceOrder: submitOrder,
+
+  convertedAmount,
+  draftOrderStatus,
 };
 
   return (

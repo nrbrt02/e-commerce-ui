@@ -1,14 +1,21 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCheckout } from "../../context/CheckoutContenxt";
+import { Address } from '../../types/address';
 // import { useAuth } from "../../context/AuthContext";
 
-const AddressForm: React.FC = () => {
+interface AddressFormProps {
+  type: 'shipping' | 'billing';
+  onAddressChange?: (address: Address) => void;
+}
+
+const AddressForm: React.FC<AddressFormProps> = ({ type, onAddressChange }) => {
   const navigate = useNavigate();
   const { 
     addressData, 
     handleAddressChange, 
     handleCheckboxChange,
+    useSameAddressForBilling,
     isAuthenticated,
     savedAddresses,
     fetchSavedAddresses,
@@ -16,7 +23,8 @@ const AddressForm: React.FC = () => {
     isAddressValid,
     addressValidationMessage,
     goToNextStep,
-    validateAddress
+    validateAddress,
+    draftOrder
   } = useCheckout();
   
   // const { user } = useAuth();
@@ -27,6 +35,25 @@ const AddressForm: React.FC = () => {
       fetchSavedAddresses();
     }
   }, [isAuthenticated, fetchSavedAddresses]);
+
+  // Load address data from draft order if available
+  useEffect(() => {
+    if (draftOrder) {
+      const address = type === 'shipping' ? draftOrder.shippingAddress : draftOrder.billingAddress;
+      if (address) {
+        // Update form fields with draft order address
+        Object.entries(address).forEach(([key, value]) => {
+          const event = {
+            target: {
+              name: key,
+              value: value
+            }
+          } as React.ChangeEvent<HTMLInputElement>;
+          handleAddressChange(event);
+        });
+      }
+    }
+  }, [draftOrder, type]);
 
   // Handle address selection
   const handleAddressSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -50,31 +77,25 @@ const AddressForm: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Shipping Information
-      </h2>
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">
+        {type === 'shipping' ? 'Shipping Address' : 'Billing Address'}
+      </h3>
 
       {/* Saved addresses for authenticated users */}
       {isAuthenticated && savedAddresses.length > 0 && (
-        <div className="mb-6">
-          <label
-            htmlFor="savedAddress"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Use a saved address
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700">
+            Select a saved address
           </label>
           <select
-            id="savedAddress"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             onChange={handleAddressSelection}
-            defaultValue=""
           >
-            <option value="">Select a saved address</option>
+            <option value="">Select an address</option>
             {savedAddresses.map((address) => (
               <option key={address.id} value={address.id}>
-                {address.address}, {address.city}, {address.state} (
-                {address.isDefault ? "Default" : ""})
+                {address.address}, {address.city}
               </option>
             ))}
           </select>
@@ -83,196 +104,162 @@ const AddressForm: React.FC = () => {
 
       {/* Error message */}
       {!isAddressValid && addressValidationMessage && (
-        <div className="mb-4 p-3 border border-red-300 bg-red-50 text-red-600 rounded-lg">
-          <i className="fas fa-exclamation-circle mr-2"></i>
+        <div className="mt-2 text-sm text-red-600">
           {addressValidationMessage}
         </div>
       )}
 
       {/* Address form */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label
-            htmlFor="firstName"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            First Name *
+          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+            First Name
           </label>
           <input
             type="text"
-            id="firstName"
             name="firstName"
+            id="firstName"
             value={addressData.firstName}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="lastName"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Last Name *
+          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+            Last Name
           </label>
           <input
             type="text"
-            id="lastName"
             name="lastName"
+            id="lastName"
             value={addressData.lastName}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Email *
+        <div className="sm:col-span-2">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            Email
           </label>
           <input
             type="email"
-            id="email"
             name="email"
+            id="email"
             value={addressData.email}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="phone"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Phone Number *
+        <div className="sm:col-span-2">
+          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+            Phone
           </label>
           <input
             type="tel"
-            id="phone"
             name="phone"
+            id="phone"
             value={addressData.phone}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            placeholder="e.g. 078XXXXXXX"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
-        <div className="md:col-span-2">
-          <label
-            htmlFor="address"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Street Address *
+        <div className="sm:col-span-2">
+          <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+            Address
           </label>
           <input
             type="text"
-            id="address"
             name="address"
+            id="address"
             value={addressData.address}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
-        <div className="md:col-span-2">
-          <label
-            htmlFor="address2"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Apartment, Suite, Unit, etc. (optional)
+        <div className="sm:col-span-2">
+          <label htmlFor="address2" className="block text-sm font-medium text-gray-700">
+            Apartment, suite, etc. (optional)
           </label>
           <input
             type="text"
-            id="address2"
             name="address2"
-            value={addressData.address2 || ""}
+            id="address2"
+            value={addressData.address2}
             onChange={handleAddressChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="city"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            City *
+          <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+            City
           </label>
           <input
             type="text"
-            id="city"
             name="city"
+            id="city"
             value={addressData.city}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="state"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Province/State *
+          <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+            State / Province
           </label>
           <input
             type="text"
-            id="state"
             name="state"
+            id="state"
             value={addressData.state}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="postalCode"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
             Postal Code
           </label>
           <input
             type="text"
-            id="postalCode"
             name="postalCode"
+            id="postalCode"
             value={addressData.postalCode}
             onChange={handleAddressChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            required
           />
         </div>
 
         <div>
-          <label
-            htmlFor="country"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Country *
+          <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+            Country
           </label>
           <select
-            id="country"
             name="country"
+            id="country"
             value={addressData.country}
             onChange={handleAddressChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
           >
             <option value="">Select a country</option>
             <option value="Rwanda">Rwanda</option>
-            <option value="Uganda">Uganda</option>
-            <option value="Kenya">Kenya</option>
-            <option value="Tanzania">Tanzania</option>
-            <option value="Burundi">Burundi</option>
+            {/* Add more countries as needed */}
           </select>
         </div>
       </div>
@@ -280,20 +267,21 @@ const AddressForm: React.FC = () => {
       {/* Save address checkbox for authenticated users */}
       {isAuthenticated && (
         <div className="mt-4">
-          <label className="inline-flex items-center">
+          <label className="flex items-center">
             <input
               type="checkbox"
-              name="address.saveAddress"
-              checked={addressData.saveAddress}
+              name="useSameAddressForBilling"
+              checked={useSameAddressForBilling}
               onChange={handleCheckboxChange}
-              className="h-4 w-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
             />
-            <span className="ml-2 text-gray-700 text-sm">
-              Save this address for future orders
+            <span className="ml-2 text-sm text-gray-600">
+              Use the same address for billing
             </span>
           </label>
         </div>
       )}
+
       <div className="flex justify-between mt-8">
         <button
           onClick={handleBackToCart}

@@ -16,6 +16,7 @@ interface ProductsTableRowProps {
   getStatusBadgeClass: (status: string) => string;
   formatPrice: (price: number | string | null | undefined) => string;
   parseImageUrl: (imgUrl: string) => string;
+  isSupplier: boolean;
 }
 
 export const ProductsTableRow = ({
@@ -28,6 +29,7 @@ export const ProductsTableRow = ({
   getStatusBadgeClass,
   formatPrice,
   parseImageUrl,
+  isSupplier,
 }: ProductsTableRowProps) => {
   return (
     <tr key={product.id} className="hover:bg-gray-50">
@@ -125,6 +127,10 @@ export const ProductsTableRow = ({
               }`}
             />
           </button>
+        </div>
+      </td>
+      {!isSupplier && (
+        <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
           <button
             onClick={() => onToggleFeatured(product)}
             className={`text-sm ${
@@ -137,8 +143,8 @@ export const ProductsTableRow = ({
               fill={product.isFeatured ? "currentColor" : "none"}
             />
           </button>
-        </div>
-      </td>
+        </td>
+      )}
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
           <button

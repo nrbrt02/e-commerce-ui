@@ -104,21 +104,38 @@ const orderApi = {
     draftData: Partial<DraftOrder>
   ): Promise<DraftOrder> => {
     try {
-      console.log("Creating draft order with data:", draftData);
+      console.log("Creating draft order with data:", JSON.stringify(draftData, null, 2));
 
       try {
+        // Log the exact request being sent
+        console.log("Sending request to /orders/draft with payload:", {
+          url: "/orders/draft",
+          method: "POST",
+          data: draftData
+        });
+
         const response = await apiClient.post("/orders/draft", draftData);
+
+        console.log("Draft order response:", response.data);
 
         if (response.data && response.data.data && response.data.data.order) {
           return response.data.data.order;
         }
         return response.data.data;
-      } catch (apiError) {
+      } catch (apiError: any) {
+        console.error("API Error Details:", {
+          status: apiError.response?.status,
+          data: apiError.response?.data,
+          message: apiError.message
+        });
+        
         console.warn(
           "API endpoint failed, using mock implementation:",
           apiError
         );
-        return {
+        
+        // Create a mock draft order
+        const mockDraftOrder: DraftOrder = {
           id: Math.floor(Math.random() * 1000000),
           items: draftData.items || [],
           subtotal: draftData.subtotal || 0,
@@ -126,9 +143,18 @@ const orderApi = {
           shipping: draftData.shipping || 0,
           total: draftData.total || 0,
           shippingMethod: draftData.shippingMethod,
+          paymentMethod: draftData.paymentMethod,
+          shippingAddress: draftData.shippingAddress,
+          billingAddress: draftData.billingAddress,
           status: "draft",
           orderNumber: `DRAFT-${Date.now()}`,
+          lastUpdated: new Date().toISOString()
         };
+
+        // Save to localStorage
+        localStorage.setItem('checkoutDraftOrderId', JSON.stringify(mockDraftOrder));
+        
+        return mockDraftOrder;
       }
     } catch (error) {
       console.error("Error creating draft order:", error);

@@ -92,4 +92,5 @@ export interface DraftOrder {
     paymentStatus?: PaymentStatus;
     customer?: Customer;
     metadata?: any;
+    lastUpdated?: string;
 }

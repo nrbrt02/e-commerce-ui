@@ -8,6 +8,7 @@ import CustomerProfile from '../components/account/CustomerProfile';
 import UpdatePassword from '../components/account/UpdatePassword';
 import AddressManagement from '../components/account/AddressManagement';
 import OrdersTab from './account/OrdersTab';
+import DraftOrders from '../components/account/DraftOrders';
 
 const AccountPage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -76,6 +77,14 @@ const AccountPage: React.FC = () => {
     navigate(`/account?tab=${tab}`, { replace: true });
   };
   
+  const tabs = [
+    { id: 'profile', name: 'Profile', icon: 'fa-user' },
+    { id: 'orders', name: 'Orders', icon: 'fa-shopping-bag' },
+    { id: 'drafts', name: 'Draft Orders', icon: 'fa-file-alt' },
+    { id: 'addresses', name: 'Addresses', icon: 'fa-map-marker-alt' },
+    { id: 'settings', name: 'Settings', icon: 'fa-cog' },
+  ];
+  
   const renderTabContent = () => {
     if (isProfileLoading) {
       return (
@@ -107,9 +116,12 @@ const AccountPage: React.FC = () => {
           </div>
         );
         
-      // case 'wishlist':
-      //   return <WishlistComponent />;
-      
+      case 'drafts':
+        return <DraftOrders />;
+        
+      case 'settings':
+        return <AccountSettings />;
+        
       case 'orders':
       default:
         return (
@@ -187,14 +199,25 @@ const AccountPage: React.FC = () => {
                 </button>
                 
                 <button 
-                  onClick={() => handleTabChange('wishlist')}
+                  onClick={() => handleTabChange('drafts')}
                   className={`w-full text-left block px-3 py-2 rounded-md ${
-                    activeTab === 'wishlist' 
+                    activeTab === 'drafts' 
                       ? 'bg-sky-100 text-sky-700 font-medium' 
                       : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
                   }`}
                 >
-                  <i className="fas fa-heart mr-2"></i> Wishlist
+                  <i className="fas fa-file-alt mr-2"></i> Draft Orders
+                </button>
+                
+                <button 
+                  onClick={() => handleTabChange('settings')}
+                  className={`w-full text-left block px-3 py-2 rounded-md ${
+                    activeTab === 'settings' 
+                      ? 'bg-sky-100 text-sky-700 font-medium' 
+                      : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
+                  }`}
+                >
+                  <i className="fas fa-cog mr-2"></i> Settings
                 </button>
               </nav>
             </div>
