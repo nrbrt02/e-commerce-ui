@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import { Product } from '../../types/ProductTypes';
+import { AUTH_TOKEN_KEY } from "../../constants/auth-constants";
 // API base URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -112,10 +113,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const token = localStorage.getItem("token");
+        // const token = localStorage.getItem("token");
         const response = await axios.get(`${API_BASE_URL}/categories`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
           },
         });
         setAvailableCategories(response.data.data.categories || []);
@@ -301,93 +302,94 @@ const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   // Submit the form
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
-    // Validate form first
-    if (!validateForm()) {
-      // Show error message and highlight the correct tab
-      const errorFields = Object.keys(formErrors);
-      if (
-        errorFields.includes("name") ||
-        errorFields.includes("description") ||
-        errorFields.includes("shortDescription")
-      ) {
-        setActiveTab("basic");
-      } else if (
-        errorFields.includes("sku") ||
-        errorFields.includes("price") ||
-        errorFields.includes("quantity")
-      ) {
-        setActiveTab("inventory");
-      } else if (errorFields.includes("imageUrls")) {
-        setActiveTab("media");
-      }
-      return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // Validate form first
+  if (!validateForm()) {
+    // Show error message and highlight the correct tab
+    const errorFields = Object.keys(formErrors);
+    if (
+      errorFields.includes("name") ||
+      errorFields.includes("description") ||
+      errorFields.includes("shortDescription")
+    ) {
+      setActiveTab("basic");
+    } else if (
+      errorFields.includes("sku") ||
+      errorFields.includes("price") ||
+      errorFields.includes("quantity")
+    ) {
+      setActiveTab("inventory");
+    } else if (errorFields.includes("imageUrls")) {
+      setActiveTab("media");
     }
-  
-    setIsLoading(true);
-    setError(null);
-  
-    try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-  
-      // Prepare the product data for submission
-      const productPayload = {
-        name: formData.name,
-        description: formData.description,
-        shortDescription: formData.shortDescription,
-        sku: formData.sku,
-        barcode: formData.barcode,
-        price: formData.price,
-        compareAtPrice: formData.compareAtPrice,
-        costPrice: formData.costPrice,
-        isPublished: formData.isPublished,
-        isFeatured: formData.isFeatured,
-        isDigital: formData.isDigital,
-        quantity: formData.quantity,
-        lowStockThreshold: formData.lowStockThreshold,
-        weight: formData.weight,
-        dimensions: formData.dimensions,
-        tags: formData.tags,
-        categoryIds: formData.categoryIds,
-        images: formData.imageUrls?.map((url) => ({ url })),
-        supplierId: formData.supplierId, // Include supplierId in the payload
-      };
-  
-      let savedProduct;
-  
-      if (mode === "create") {
-        const response = await axios.post(
-          `${API_BASE_URL}/products`,
-          productPayload,
-          { headers }
-        );
-        savedProduct = response.data.data;
-      } else {
-        if (!formData.id) throw new Error("Product ID required for update");
-        const response = await axios.put(
-          `${API_BASE_URL}/products/${formData.id}`,
-          productPayload,
-          { headers }
-        );
-        savedProduct = response.data.data;
-      }
-  
-      onProductSaved(savedProduct);
-    } catch (err: any) {
-      console.error("Error saving product:", err);
-      setError(
-        err.response?.data?.message || err.message || "Failed to save product"
+    return;
+  }
+
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    // Use the same AUTH_TOKEN_KEY constant that's used in your AuthContext
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const headers = {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    // Prepare the product data for submission
+    const productPayload = {
+      name: formData.name,
+      description: formData.description,
+      shortDescription: formData.shortDescription,
+      sku: formData.sku,
+      barcode: formData.barcode,
+      price: formData.price,
+      compareAtPrice: formData.compareAtPrice,
+      costPrice: formData.costPrice,
+      isPublished: formData.isPublished,
+      isFeatured: formData.isFeatured,
+      isDigital: formData.isDigital,
+      quantity: formData.quantity,
+      lowStockThreshold: formData.lowStockThreshold,
+      weight: formData.weight,
+      dimensions: formData.dimensions,
+      tags: formData.tags,
+      categoryIds: formData.categoryIds,
+      images: formData.imageUrls?.map((url) => ({ url })),
+      supplierId: formData.supplierId,
+    };
+
+    let savedProduct;
+
+    if (mode === "create") {
+      const response = await axios.post(
+        `${API_BASE_URL}/products`,
+        productPayload,
+        { headers }
       );
-    } finally {
-      setIsLoading(false);
+      savedProduct = response.data.data;
+    } else {
+      if (!formData.id) throw new Error("Product ID required for update");
+      const response = await axios.put(
+        `${API_BASE_URL}/products/${formData.id}`,
+        productPayload,
+        { headers }
+      );
+      savedProduct = response.data.data;
     }
-  };
+
+    onProductSaved(savedProduct);
+  } catch (err: any) {
+    console.error("Error saving product:", err);
+    setError(
+      err.response?.data?.message || err.message || "Failed to save product"
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Get error class for form inputs
   const getInputErrorClass = (fieldName: string) => {

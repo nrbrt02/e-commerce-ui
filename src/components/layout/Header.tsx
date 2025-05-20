@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useSearch } from "../../context/SearchContext";
 import CartDropdown from "../cart/CartDropdown";
-import { Search, User, Heart, ShoppingCart, LogOut, ChevronDown } from 'lucide-react';
+import { Search, User, Heart, ShoppingCart, LogOut } from 'lucide-react';
 
 const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);

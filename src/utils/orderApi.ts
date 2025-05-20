@@ -344,16 +344,31 @@ const orderApi = {
     }
   },
 
-  getOrders: async (params?: any): Promise<OrdersApiResponse> => {
+getOrders: async (params?: any): Promise<OrdersApiResponse> => {
     try {
-      const response = await apiClient.get("/orders", { params });
+      // Get the user's role from localStorage or wherever it's stored
+      const userJson = localStorage.getItem('fast_shopping_user');
+      let endpoint = "/orders";
+      
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user.role === 'supplier') {
+            endpoint = "/orders/supplier-orders";
+          }
+          // For admin and superadmin, keep the default endpoint
+        } catch (e) {
+          console.error('Failed to parse user JSON:', e);
+        }
+      }
+      
+      const response = await apiClient.get(endpoint, { params });
       return response.data;
     } catch (error) {
       console.error("Error fetching orders:", error);
       throw error;
     }
   },
-
   getOrderHistory: async (): Promise<any[]> => {
     try {
       const response = await apiClient.get("/orders/my-orders");

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import ProductModal from '../../components/dashboard/ProductModal';
-import Products from '../Products'; 
+import ProductModal from '../products-dashboard/ProductModal';
+import Products from '../products-dashboard/Products'; 
 
 const SupplierProducts: React.FC = () => {
   // State for modal

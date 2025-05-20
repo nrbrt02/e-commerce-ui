@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 import authApi from "../utils/authApi";
 import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "../constants/auth-constants";
 import { showToast } from "../components/ui/ToastProvider";
@@ -15,7 +15,7 @@ export interface User {
   primaryRole?: string;
   role?: string; 
   roles?: Array<string | { name: string; permissions?: string[] }>;
-  [key: string]: any; // For any additional properties
+  [key: string]: any;
 }
 
 export interface RegisterData {
