@@ -70,9 +70,11 @@ export interface DraftOrder {
   paymentStatus?: PaymentStatus;
   shipping: number;
   total: number;
+  totalItems: number;
   shippingAddress?: AddressFormData;
   billingAddress?: AddressFormData;
   shippingMethod?: string;
+  shippingOptions?: DeliveryOption[];
   paymentMethod?: string;
   paymentDetails?: any;
   notes?: string;
@@ -119,7 +121,7 @@ interface CheckoutContextType {
     newPaymentStatus: PaymentStatus,
     paymentMethod: string
   ) => Promise<boolean>;
-  submitOrder: () => Promise<any>;
+  submitOrder: () => Promise<void>;
   createDraftOrder: () => Promise<DraftOrder>;
   updateDraftOrder: (updateData: Partial<DraftOrder>) => Promise<DraftOrder>;
   draftOrder: DraftOrder | null;
@@ -155,6 +157,12 @@ interface CheckoutContextType {
   } | null;
 
   draftOrderStatus: 'saving' | 'saved' | 'error' | null;
+  handlePriceUpdate: (prices: {
+    subtotal: number;
+    shipping: number;
+    tax: number;
+    total: number;
+  }) => void;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(
@@ -407,33 +415,58 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshShippingOptions = async () => {
     setIsLoadingShippingOptions(true);
     try {
-      // For now, we're using static shipping options with free shipping
-      setDeliveryOptions([
+      // For now, we're using static shipping options with defined prices
+      const updatedOptions = [
         {
           id: "standard",
           name: "Standard Delivery",
           description: "Delivery within 3-5 business days",
           price: 0,
           available: true,
+          estimatedDays: 5,
+          estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
           id: "express",
           name: "Express Delivery",
           description: "Delivery within 1-2 business days",
-          price: 0,
+          price: 2000,
           available: true,
+          estimatedDays: 2,
+          estimatedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
           id: "same_day",
           name: "Same Day Delivery",
           description: "Delivery today (order before 2 PM)",
-          price: 0,
+          price: 5000,
           available: true,
+          estimatedDays: 1,
+          estimatedDelivery: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         },
-      ]);
+      ];
 
-      // Set shipping cost to 0 for now
-      setShippingCost(0);
+      setDeliveryOptions(updatedOptions);
+
+      // If we have a draft order, update it with the new shipping options
+      const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
+      if (draftOrderId) {
+        const numericId = parseInt(draftOrderId, 10);
+        if (!isNaN(numericId)) {
+          await orderApi.updateDraftOrder(numericId, {
+            shippingOptions: updatedOptions,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+      }
+
+      // Set initial shipping cost based on selected method
+      const selectedOption = updatedOptions.find(option => option.id === selectedShippingMethod);
+      if (selectedOption) {
+        setShippingCost(selectedOption.price);
+        const newTotal = totalAmount + selectedOption.price + taxAmount;
+        setTotalOrderAmount(newTotal);
+      }
     } catch (error) {
       console.error("Error fetching shipping options:", error);
       setDeliveryOptions([
@@ -465,13 +498,16 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         tax: taxAmount,
         shipping: shippingCost,
         total: totalOrderAmount,
+        totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
         shippingAddress: addressData,
         billingAddress: useSameAddressForBilling ? addressData : undefined,
         shippingMethod: selectedShippingMethod,
         paymentMethod: selectedPaymentMethod,
         status: 'draft',
         orderNumber: `DRAFT-${Date.now()}`,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        paymentStatus: paymentStatus,
+        paymentDetails: paymentDetails
       };
 
       // Create draft order using the API
@@ -481,10 +517,16 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       setDraftOrder(createdDraft);
       setDraftOrderStatus('saved');
 
+      // Store only the numeric ID in localStorage
+      if (createdDraft.id) {
+        localStorage.setItem('checkoutDraftOrderId', createdDraft.id.toString());
+      }
+
       return createdDraft;
     } catch (error) {
       console.error('Error creating draft order:', error);
       setDraftOrderStatus('error');
+      showToast.error('Failed to save your order progress. Please try again.');
       throw error;
     } finally {
       isCreatingDraftOrder.current = false;
@@ -499,6 +541,8 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     useSameAddressForBilling,
     selectedShippingMethod,
     selectedPaymentMethod,
+    paymentStatus,
+    paymentDetails
   ]);
 
   const updateDraftOrder = useCallback(async (updateData: Partial<DraftOrder>): Promise<DraftOrder> => {
@@ -516,15 +560,29 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         total: updateData.total ?? draftOrder!.total,
       };
 
-      // Save updated draft to localStorage
-      localStorage.setItem('checkoutDraftOrderId', JSON.stringify(updatedDraft));
+      // Save only the numeric ID in localStorage
+      if (updatedDraft.id) {
+        localStorage.setItem('checkoutDraftOrderId', updatedDraft.id.toString());
+      }
+      
+      // Update state
       setDraftOrder(updatedDraft);
       setDraftOrderStatus('saved');
+
+      // Show success message for important updates
+      if (updateData.paymentStatus === 'paid') {
+        showToast.success('Payment completed successfully!');
+      } else if (updateData.shippingAddress) {
+        showToast.success('Shipping information saved!');
+      } else if (updateData.shippingMethod) {
+        showToast.success('Delivery method updated!');
+      }
 
       return updatedDraft;
     } catch (error) {
       console.error('Error updating draft order:', error);
       setDraftOrderStatus('error');
+      showToast.error('Failed to save your changes. Please try again.');
       throw error;
     }
   }, [draftOrder]);
@@ -534,23 +592,18 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       const nextStep = activeStep + 1;
 
       // Validate current step data
-
-      if (
-        activeStep === 2 &&
-        (paymentStatus === "paid" || paymentStatus === "authorized")
-      ) {
+      if (activeStep === 2 && (paymentStatus === "paid" || paymentStatus === "authorized")) {
         setActiveStep(nextStep);
         return;
       }
       if (activeStep === 0 && !(await validateAddress())) return;
       if (activeStep === 2 && !(await validatePayment())) return;
+
       // Always update the draft order in the database with current step data
       const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
 
       if (!draftOrderId || draftOrderId === "undefined") {
-        console.error(
-          "No draft order ID found in localStorage when trying to go to next step"
-        );
+        console.error("No draft order ID found in localStorage when trying to go to next step");
         setErrors((prev) => [
           ...prev,
           "Order information not found. Please go back to cart and try again.",
@@ -564,7 +617,8 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         // Step 1: Address
         updateData = {
           shippingAddress: addressData,
-          billingAddress: addressData,
+          billingAddress: useSameAddressForBilling ? addressData : undefined,
+          lastUpdated: new Date().toISOString()
         };
         console.log("Updating draft order with address data:", updateData);
       } else if (activeStep === 1) {
@@ -573,9 +627,15 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
           (option) => option.id === selectedShippingMethod
         );
         if (selectedOption) {
+          // Calculate new totals with shipping
+          const newShippingCost = selectedOption.price;
+          const newTotal = totalAmount + newShippingCost + taxAmount;
+
           updateData = {
             shippingMethod: selectedShippingMethod,
-            shipping: selectedOption.price,
+            shipping: newShippingCost,
+            total: newTotal,
+            lastUpdated: new Date().toISOString()
           };
           console.log("Updating draft order with shipping data:", updateData);
         }
@@ -594,6 +654,7 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
               : {},
           paymentStatus: paymentStatus,
+          lastUpdated: new Date().toISOString()
         };
         console.log("Updating draft order with payment data:", updateData);
       }
@@ -601,13 +662,23 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       // Only make API call if there's data to update
       if (Object.keys(updateData).length > 0) {
         try {
-          const updatedDraft = await updateDraftOrder(updateData);
-          console.log("Draft order updated successfully:", updatedDraft);
+          const numericId = parseInt(draftOrderId, 10);
+          if (!isNaN(numericId)) {
+            const updatedDraft = await orderApi.updateDraftOrder(numericId, updateData);
+            console.log("Draft order updated successfully:", updatedDraft);
+            
+            // Update local state with the new values
+            if (updatedDraft.shipping) {
+              setShippingCost(updatedDraft.shipping);
+            }
+            if (updatedDraft.total) {
+              setTotalOrderAmount(updatedDraft.total);
+            }
+          } else {
+            throw new Error("Invalid draft order ID");
+          }
         } catch (error) {
-          console.error(
-            "Failed to update draft order during step navigation:",
-            error
-          );
+          console.error("Failed to update draft order during step navigation:", error);
           setErrors((prev) => [...prev, "Failed to update order information"]);
           // Continue to next step even if update fails
         }
@@ -616,25 +687,61 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       // Move to next step
       setActiveStep(nextStep);
     } catch (error) {
-      console.error("Error during step navigation:", error);
-      setErrors((prev) => [
-        ...prev,
-        "Failed to proceed to next step. Please try again.",
-      ]);
+      console.error("Error in goToNextStep:", error);
+      setErrors((prev) => [...prev, "Failed to proceed to next step"]);
     }
   }, [
     activeStep,
-    addressData,
-    selectedShippingMethod,
-    deliveryOptions,
-    selectedPaymentMethod,
-    paymentData,
     paymentStatus,
     validateAddress,
     validatePayment,
-    updateDraftOrder,
+    addressData,
+    useSameAddressForBilling,
+    deliveryOptions,
+    selectedShippingMethod,
+    selectedPaymentMethod,
+    paymentData,
+    totalAmount,
+    taxAmount
   ]);
 
+  // Add new effect to check for PayPal payment on mount
+  useEffect(() => {
+    const checkPayPalPayment = async () => {
+      try {
+        const storedPayment = localStorage.getItem('paypal_payment_response');
+        if (storedPayment && selectedPaymentMethod === "paypal") {
+          console.log("Found PayPal payment in localStorage:", storedPayment);
+          const paymentInfo = JSON.parse(storedPayment);
+
+          // Update payment details in state
+          setPaymentDetails(paymentInfo);
+          setPaymentStatus(paymentInfo.status === "COMPLETED" ? "paid" : "pending");
+
+          // Update draft order with payment details
+          const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
+          if (draftOrderId) {
+            const numericId = parseInt(draftOrderId, 10);
+            if (!isNaN(numericId)) {
+              await orderApi.updateDraftOrder(numericId, {
+                paymentMethod: "paypal",
+                paymentDetails: paymentInfo,
+                paymentStatus: paymentInfo.status === "COMPLETED" ? "paid" : "pending",
+                status: paymentInfo.status === "COMPLETED" ? "processing" : "pending",
+                lastUpdated: new Date().toISOString()
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error processing PayPal payment:", error);
+      }
+    };
+
+    checkPayPalPayment();
+  }, [selectedPaymentMethod]);
+
+  // Update handlePaymentCompletion to properly format PayPal data
   const handlePaymentCompletion = useCallback(async (
     paymentData: any,
     newPaymentStatus: PaymentStatus,
@@ -643,6 +750,24 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setIsProcessingOrder(true);
 
+      // Format PayPal payment data if needed
+      let formattedPaymentData = paymentData;
+      if (paymentMethod === 'paypal' && paymentData) {
+        formattedPaymentData = {
+          transactionId: paymentData.transactionId,
+          payerId: paymentData.payerId,
+          payerEmail: paymentData.payerEmail,
+          amount: paymentData.amount,
+          currency: paymentData.currency,
+          status: paymentData.status,
+          createTime: paymentData.createTime,
+          updateTime: paymentData.updateTime
+        };
+
+        // Store in localStorage for persistence
+        localStorage.setItem('paypal_payment_response', JSON.stringify(formattedPaymentData));
+      }
+
       // Convert amount for PayPal
       if (paymentMethod === 'paypal') {
         const converted = await getPayPalAmount(totalOrderAmount);
@@ -650,12 +775,21 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Update draft order with payment information
-      await updateDraftOrder({
-        paymentStatus: newPaymentStatus,
-        paymentDetails: paymentData,
-      });
+      const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
+      if (draftOrderId) {
+        const numericId = parseInt(draftOrderId, 10);
+        if (!isNaN(numericId)) {
+          await orderApi.updateDraftOrder(numericId, {
+            paymentStatus: newPaymentStatus,
+            paymentDetails: formattedPaymentData,
+            status: 'processing',
+            lastUpdated: new Date().toISOString()
+          });
+        }
+      }
 
       setPaymentStatus(newPaymentStatus);
+      setPaymentDetails(formattedPaymentData);
       return true;
     } catch (error) {
       console.error('Error handling payment completion:', error);
@@ -664,58 +798,68 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsProcessingOrder(false);
     }
-  }, [totalOrderAmount, updateDraftOrder]);
+  }, [totalOrderAmount]);
 
-  const submitOrder = useCallback(async () => {
+  const submitOrder = async (): Promise<void> => {
     try {
       setIsProcessingOrder(true);
+      setErrors([]);
 
-      // Validate all required data
-      if (!await validateAddress() || !await validatePayment()) {
-        return;
+      // Get the draft order ID from localStorage
+      const draftOrderIdStr = localStorage.getItem('checkoutDraftOrderId');
+      if (!draftOrderIdStr) {
+        throw new Error('No draft order found. Please restart the checkout process.');
       }
 
-      // Convert amount for PayPal if needed
-      let finalAmount = totalOrderAmount;
+      // Parse and validate the draft order ID
+      const draftOrderId = parseInt(draftOrderIdStr, 10);
+      if (isNaN(draftOrderId)) {
+        throw new Error('Invalid draft order ID format. Please restart the checkout process.');
+      }
+
+      // Get PayPal payment details if using PayPal
+      let paymentDetails = {};
       if (selectedPaymentMethod === 'paypal') {
-        const converted = await getPayPalAmount(totalOrderAmount);
-        finalAmount = converted.amount;
+        const paypalResponse = localStorage.getItem('paypal_payment_response');
+        if (paypalResponse) {
+          try {
+            paymentDetails = JSON.parse(paypalResponse);
+          } catch (error) {
+            console.error('Error parsing PayPal response:', error);
+          }
+        }
       }
 
-      // Update draft order with final data
-      const updatedDraft = await updateDraftOrder({
-        total: finalAmount,
-        status: 'pending',
-        paymentStatus: paymentStatus,
-        paymentDetails: paymentData,
+      // Update the draft order with payment details
+      await orderApi.updateDraftOrder(draftOrderId, {
+        paymentDetails,
+        paymentStatus: selectedPaymentMethod === 'paypal' ? 'paid' : 'pending',
+        lastUpdated: new Date().toISOString()
       });
 
-      // Convert draft to final order
-      const response = await orderApi.convertDraftToOrder(updatedDraft.id!);
-
-      // Clear draft order
+      // Convert draft order to final order
+      const order = await orderApi.convertDraftToOrder(draftOrderId);
+      
+      // Clear the cart and draft order from localStorage
       localStorage.removeItem('checkoutDraftOrderId');
-      setDraftOrder(null);
+      localStorage.removeItem('fastShoppingCart');
+      localStorage.removeItem('paypal_payment_response');
 
-      setOrderDetails(response);
+      // Update the order state
+      setOrderDetails(order);
       setOrderComplete(true);
-      return response;
-    } catch (error) {
+      
+      // Show success message
+      showToast.success('Order placed successfully! Thank you for your purchase.');
+    } catch (error: any) {
       console.error('Error submitting order:', error);
-      setErrors(['Failed to submit order. Please try again.']);
+      setErrors([error.message || 'Failed to submit order. Please try again.']);
+      showToast.error('Failed to place your order. Please try again.');
       throw error;
     } finally {
       setIsProcessingOrder(false);
     }
-  }, [
-    validateAddress,
-    validatePayment,
-    totalOrderAmount,
-    selectedPaymentMethod,
-    paymentStatus,
-    paymentData,
-    updateDraftOrder,
-  ]);
+  };
 
   const processOrder = useCallback(async () => {
     try {
@@ -807,19 +951,37 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       const existingDraftId = localStorage.getItem("checkoutDraftOrderId");
       if (existingDraftId && existingDraftId !== "undefined" && !draftOrder) {
         try {
-          const existingOrder = await orderApi.getDraftOrder(existingDraftId);
+          // Ensure we're passing a numeric ID
+          const numericId = parseInt(existingDraftId, 10);
+          if (isNaN(numericId)) {
+            throw new Error('Invalid draft order ID');
+          }
+          
+          const existingOrder = await orderApi.getDraftOrder(numericId);
           if (existingOrder) {
             setDraftOrder(existingOrder);
 
             // Load data from draft order
-            if (existingOrder.shippingAddress)
+            if (existingOrder.shippingAddress) {
               setAddressData(existingOrder.shippingAddress);
-            if (existingOrder.shippingMethod)
+              // If billing address exists and is different from shipping, set useSameAddressForBilling to false
+              if (existingOrder.billingAddress && 
+                  JSON.stringify(existingOrder.billingAddress) !== JSON.stringify(existingOrder.shippingAddress)) {
+                setUseSameAddressForBilling(false);
+              }
+            }
+            if (existingOrder.shippingMethod) {
               setSelectedShippingMethod(existingOrder.shippingMethod);
-            if (existingOrder.paymentMethod)
+            }
+            if (existingOrder.paymentMethod) {
               setSelectedPaymentMethod(existingOrder.paymentMethod);
-            if (existingOrder.paymentStatus)
+            }
+            if (existingOrder.paymentStatus) {
               setPaymentStatus(existingOrder.paymentStatus);
+            }
+            if (existingOrder.paymentDetails) {
+              setPaymentDetails(existingOrder.paymentDetails);
+            }
 
             // Set cart data from draft order
             if (existingOrder.items && existingOrder.items.length > 0) {
@@ -831,10 +993,20 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
             if (existingOrder.tax) setTaxAmount(existingOrder.tax);
             if (existingOrder.shipping) setShippingCost(existingOrder.shipping);
             if (existingOrder.total) setTotalOrderAmount(existingOrder.total);
+
+            // Set the active step based on the order's progress
+            if (existingOrder.paymentStatus === "paid") {
+              setActiveStep(3); // Go to review step if payment is complete
+            } else if (existingOrder.shippingAddress && existingOrder.shippingMethod) {
+              setActiveStep(2); // Go to payment step if shipping is complete
+            } else if (existingOrder.shippingAddress) {
+              setActiveStep(1); // Go to shipping step if address is complete
+            }
           }
         } catch (error) {
           console.error("Error loading draft order:", error);
           localStorage.removeItem("checkoutDraftOrderId");
+          showToast.error("Failed to load your saved order. Starting fresh checkout.");
         }
       }
     };
@@ -879,76 +1051,168 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       (option) => option.id === selectedShippingMethod
     );
     if (selectedOption) {
-      setShippingCost(selectedOption.price);
-      setTotalOrderAmount(totalAmount + selectedOption.price + taxAmount);
+      const newShippingCost = selectedOption.price;
+      const newTotal = totalAmount + newShippingCost + taxAmount;
+      
+      setShippingCost(newShippingCost);
+      setTotalOrderAmount(newTotal);
+
+      // Update draft order with new shipping information
+      const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
+      if (draftOrderId) {
+        const numericId = parseInt(draftOrderId, 10);
+        if (!isNaN(numericId)) {
+          orderApi.updateDraftOrder(numericId, {
+            shippingMethod: selectedShippingMethod,
+            shipping: newShippingCost,
+            total: newTotal,
+            lastUpdated: new Date().toISOString()
+          }).catch(error => {
+            console.error("Error updating draft order with shipping:", error);
+          });
+        }
+      }
     }
   }, [selectedShippingMethod, deliveryOptions, totalAmount, taxAmount]);
 
-const value: CheckoutContextType = {
-  activeStep,
-  goToNextStep,
-  goToPrevStep,
-  goToStep,
-  isAuthenticated,
-  addressData,
-  handleAddressChange,
-  paymentData,
-  paymentDetails,
-  setPaymentDetails,
-  handlePaymentChange,
-  handleCheckboxChange,
-  handlePaymentCompletion,
-  deliveryOptions,
-  paymentStatus,
-  setPaymentStatus,
-  selectedShippingMethod: selectedShippingMethod,
-  setSelectedShippingMethod,
-  paymentMethods,
-  selectedPaymentMethod,
-  setErrors,
-  setSelectedPaymentMethod,
-  cartItems,
-  totalAmount: totalAmount,
-  totalSavings,
-  shippingCost,
-  taxAmount,
-  totalOrderAmount: totalOrderAmount,
-  isProcessingOrder,
-  orderComplete,
-  orderDetails,
-  submitOrder: submitOrder,
-  createDraftOrder,
-  updateDraftOrder,
-  draftOrder,
-  errors,
-  clearErrors,
-  savedAddresses,
-  fetchSavedAddresses,
-  loadSavedAddress,
-  validateAddress,
-  validatePayment,
-  isAddressValid,
-  addressValidationMessage,
-  isLoadingShippingOptions,
-  refreshShippingOptions,
-  shippingAddress: addressData,
-  billingAddress: addressData,
-  useSameAddressForBilling,
-  shippingMethod: selectedShippingMethod,
-  paymentMethod: selectedPaymentMethod,
-  availableShippingMethods: deliveryOptions,
-  processOrder,
+  // Add new function to handle price updates from OrderSummary
+  const handlePriceUpdate = useCallback((prices: {
+    subtotal: number;
+    shipping: number;
+    tax: number;
+    total: number;
+  }) => {
+    // Update draft order with the latest prices
+    const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
+    if (draftOrderId) {
+      const numericId = parseInt(draftOrderId, 10);
+      if (!isNaN(numericId)) {
+        orderApi.updateDraftOrder(numericId, {
+          subtotal: prices.subtotal,
+          shipping: prices.shipping,
+          tax: prices.tax,
+          total: prices.total,
+          lastUpdated: new Date().toISOString()
+        }).catch(error => {
+          console.error("Error updating draft order with prices:", error);
+        });
+      }
+    }
+  }, []);
 
-  selectedShipping: selectedShippingMethod,
-  cartTotal: totalAmount, 
-  discountAmount: totalSavings, 
-  orderTotal: totalOrderAmount,
-  items: cartItems, 
-  handlePlaceOrder: submitOrder,
+  // Add cleanup effect
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // If the user leaves the page without completing the order,
+      // we'll keep the draft order for 24 hours
+      const draftOrderId = localStorage.getItem('checkoutDraftOrderId');
+      if (draftOrderId) {
+        const cleanupTime = new Date();
+        cleanupTime.setHours(cleanupTime.getHours() + 24);
+        localStorage.setItem('draftOrderCleanupTime', cleanupTime.toISOString());
+      }
+    };
 
-  convertedAmount,
-  draftOrderStatus,
-};
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // Add cleanup check on mount
+  useEffect(() => {
+    const checkAndCleanupDraftOrders = async () => {
+      const cleanupTime = localStorage.getItem('draftOrderCleanupTime');
+      if (cleanupTime) {
+        const cleanupDate = new Date(cleanupTime);
+        if (cleanupDate < new Date()) {
+          // Cleanup time has passed, remove the draft order
+          const draftOrderId = localStorage.getItem('checkoutDraftOrderId');
+          if (draftOrderId) {
+            try {
+              const numericId = parseInt(draftOrderId, 10);
+              if (!isNaN(numericId)) {
+                await orderApi.deleteDraftOrder(numericId);
+                localStorage.removeItem('checkoutDraftOrderId');
+                localStorage.removeItem('draftOrderCleanupTime');
+              }
+            } catch (error) {
+              console.error('Error cleaning up draft order:', error);
+            }
+          }
+        }
+      }
+    };
+
+    checkAndCleanupDraftOrders();
+  }, []);
+
+  const value: CheckoutContextType = {
+    activeStep,
+    goToNextStep,
+    goToPrevStep,
+    goToStep,
+    isAuthenticated,
+    addressData,
+    handleAddressChange,
+    paymentData,
+    paymentDetails,
+    setPaymentDetails,
+    handlePaymentChange,
+    handleCheckboxChange,
+    handlePaymentCompletion,
+    deliveryOptions,
+    paymentStatus,
+    setPaymentStatus,
+    selectedShippingMethod: selectedShippingMethod,
+    setSelectedShippingMethod,
+    paymentMethods,
+    selectedPaymentMethod,
+    setErrors,
+    setSelectedPaymentMethod,
+    cartItems,
+    totalAmount: totalAmount,
+    totalSavings,
+    shippingCost,
+    taxAmount,
+    totalOrderAmount: totalOrderAmount,
+    isProcessingOrder,
+    orderComplete,
+    orderDetails,
+    submitOrder: submitOrder,
+    createDraftOrder,
+    updateDraftOrder,
+    draftOrder,
+    errors,
+    clearErrors,
+    savedAddresses,
+    fetchSavedAddresses,
+    loadSavedAddress,
+    validateAddress,
+    validatePayment,
+    isAddressValid,
+    addressValidationMessage,
+    isLoadingShippingOptions,
+    refreshShippingOptions,
+    shippingAddress: addressData,
+    billingAddress: addressData,
+    useSameAddressForBilling,
+    shippingMethod: selectedShippingMethod,
+    paymentMethod: selectedPaymentMethod,
+    availableShippingMethods: deliveryOptions,
+    processOrder,
+
+    selectedShipping: selectedShippingMethod,
+    cartTotal: totalAmount, 
+    discountAmount: totalSavings, 
+    orderTotal: totalOrderAmount,
+    items: cartItems, 
+    handlePlaceOrder: submitOrder,
+
+    convertedAmount,
+    draftOrderStatus,
+    handlePriceUpdate,
+  };
 
   return (
     <CheckoutContext.Provider value={value}>

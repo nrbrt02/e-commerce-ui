@@ -90,11 +90,14 @@ apiClient.interceptors.response.use(
 const orderApi = {
   transformCartToOrderItems: (cartItems: CartItem[]): OrderItem[] => {
     return cartItems.map((item) => ({
-      productId: item.productId || item.id,
+      productId: item.productId || item.id, // Use productId if available, fallback to id
       variantId: item.variantId,
       quantity: item.quantity,
       price: item.price,
       name: item.name,
+      image: item.image,
+      originalPrice: item.originalPrice,
+      stock: item.stock,
       options: item.options,
       metadata: item.metadata,
     }));
@@ -142,6 +145,7 @@ const orderApi = {
           tax: draftData.tax || 0,
           shipping: draftData.shipping || 0,
           total: draftData.total || 0,
+          totalItems: draftData.items?.reduce((sum, item) => sum + item.quantity, 0) || 0,
           shippingMethod: draftData.shippingMethod,
           paymentMethod: draftData.paymentMethod,
           shippingAddress: draftData.shippingAddress,
@@ -162,35 +166,12 @@ const orderApi = {
     }
   },
 
-  getDraftOrder: async (orderId: string | number): Promise<DraftOrder> => {
+  getDraftOrder: async (id: number): Promise<DraftOrder> => {
     try {
-      console.log(`Fetching draft order ${orderId}`);
-
-      try {
-        const response = await apiClient.get(`/orders/draft/${orderId}`);
-
-        if (response.data && response.data.data && response.data.data.order) {
-          return response.data.data.order;
-        }
-        return response.data.data;
-      } catch (apiError) {
-        console.warn(
-          "API endpoint failed, using mock implementation:",
-          apiError
-        );
-        return {
-          id: orderId,
-          items: [],
-          subtotal: 0,
-          tax: 0,
-          shipping: 0,
-          total: 0,
-          status: "draft",
-          orderNumber: `DRAFT-${orderId}`,
-        };
-      }
+      const response = await apiClient.get(`/orders/draft/${id}`);
+      return response.data;
     } catch (error) {
-      console.error("Error fetching draft order:", error);
+      console.error('Error fetching draft order:', error);
       throw error;
     }
   },
@@ -209,106 +190,16 @@ const orderApi = {
     }
   },
 
-  updateDraftOrder: async (
-    orderId: string | number,
-    updateData: Partial<DraftOrder>
-  ): Promise<DraftOrder> => {
+  updateDraftOrder: async (id: string | number, data: Partial<DraftOrder>): Promise<DraftOrder> => {
     try {
-      console.log(
-        `UpdateDraftOrder - Updating draft order ${orderId} with:`,
-        updateData
-      );
-
-      // Always try the real API endpoint first
-      try {
-        console.log(`Making PUT request to /orders/draft/${orderId}`);
-        console.log("Request payload:", JSON.stringify(updateData, null, 2));
-
-        const response = await apiClient.put(
-          `/orders/draft/${orderId}`,
-          updateData
-        );
-
-        console.log("API response:", response);
-
-        if (response.data && response.data.data && response.data.data.order) {
-          console.log("Returning nested order data");
-          return response.data.data.order;
-        }
-
-        console.log("Returning direct data");
-        return response.data.data;
-      } catch (apiError) {
-        console.warn(
-          "API endpoint failed, using mock implementation:",
-          apiError
-        );
-
-        // Fallback to localStorage for mock data
-        let existingDraft;
-        try {
-          const key = `mock_draft_order_${orderId}`;
-          const storedDraft = localStorage.getItem(key);
-          existingDraft = storedDraft
-            ? JSON.parse(storedDraft)
-            : {
-                id: orderId,
-                items: [],
-                subtotal: 0,
-                tax: 0,
-                shipping: 0,
-                total: 0,
-                status: "draft",
-                orderNumber: `DRAFT-${orderId}`,
-              };
-        } catch (getDraftError) {
-          console.error("Error getting draft order:", getDraftError);
-          existingDraft = {
-            id: orderId,
-            items: [],
-            subtotal: 0,
-            tax: 0,
-            shipping: 0,
-            total: 0,
-            status: "draft",
-            orderNumber: `DRAFT-${orderId}`,
-          };
-        }
-
-        const mockUpdatedOrder = {
-          ...existingDraft,
-          ...updateData,
-          id: orderId,
-          shippingAddress:
-            updateData.shippingAddress || existingDraft.shippingAddress,
-          billingAddress:
-            updateData.billingAddress || existingDraft.billingAddress,
-          shippingMethod:
-            updateData.shippingMethod || existingDraft.shippingMethod,
-          paymentMethod:
-            updateData.paymentMethod || existingDraft.paymentMethod,
-          paymentDetails:
-            updateData.paymentDetails || existingDraft.paymentDetails,
-          paymentStatus:
-            updateData.paymentStatus || existingDraft.paymentStatus,
-          status: "draft",
-          orderNumber: existingDraft.orderNumber || `DRAFT-${orderId}`,
-        };
-
-        console.log("Mock updated order:", mockUpdatedOrder);
-
-        try {
-          const key = `mock_draft_order_${orderId}`;
-          localStorage.setItem(key, JSON.stringify(mockUpdatedOrder));
-          console.log(`Saved mock order to localStorage with key ${key}`);
-        } catch (storageError) {
-          console.error("Error saving to localStorage:", storageError);
-        }
-
-        return mockUpdatedOrder;
+      const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+      if (isNaN(numericId)) {
+        throw new Error('Invalid draft order ID');
       }
+      const response = await apiClient.put(`/orders/draft/${numericId}`, data);
+      return response.data;
     } catch (error) {
-      console.error("Error updating draft order:", error);
+      console.error('Error updating draft order:', error);
       throw error;
     }
   },
@@ -395,6 +286,7 @@ getOrders: async (params?: any): Promise<OrdersApiResponse> => {
       throw error;
     }
   },
+
   getOrderHistory: async (): Promise<any[]> => {
     try {
       const response = await apiClient.get("/orders/my-orders");
@@ -458,41 +350,25 @@ getOrders: async (params?: any): Promise<OrdersApiResponse> => {
     }
   },
 
-  convertDraftToOrder: async (orderId: string | number): Promise<any> => {
+  convertDraftToOrder: async (draftOrderId: number): Promise<any> => {
     try {
-      console.log(`Converting draft order ${orderId} to a real order`);
-
-      try {
-        const response = await apiClient.post(
-          `/orders/draft/${orderId}/convert`
-        );
-
-        if (response.data && response.data.data && response.data.data.order) {
-          return response.data.data.order;
-        }
-        return response.data.data;
-      } catch (apiError) {
-        console.warn(
-          "API endpoint failed, using mock implementation:",
-          apiError
-        );
-        return {
-          id: orderId,
-          orderNumber: `ORDER-${Date.now().toString().substring(4)}`,
-          status: "pending",
-          paymentStatus: "pending",
-          createdAt: new Date().toISOString(),
-          estimatedDelivery: new Date(
-            Date.now() + 5 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          metadata: {
-            convertedFromDraft: true,
-            convertedAt: new Date().toISOString(),
-          },
-        };
+      if (!draftOrderId || isNaN(draftOrderId)) {
+        throw new Error('Invalid draft order ID');
       }
+
+      const response = await apiClient.post(`/orders/draft/${draftOrderId}/convert`);
+      return response.data.data;
     } catch (error) {
-      console.error(`Error converting draft order ${orderId}:`, error);
+      console.error('Error converting draft to order:', error);
+      throw error;
+    }
+  },
+
+  deleteDraftOrder: async (id: number): Promise<void> => {
+    try {
+      await apiClient.delete(`/orders/draft/${id}`);
+    } catch (error) {
+      console.error('Error deleting draft order:', error);
       throw error;
     }
   },
