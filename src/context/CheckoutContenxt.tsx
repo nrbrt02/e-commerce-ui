@@ -753,6 +753,14 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       // Format PayPal payment data if needed
       let formattedPaymentData = paymentData;
       if (paymentMethod === 'paypal' && paymentData) {
+        // Validate required PayPal fields
+        const requiredFields = ['transactionId', 'payerId', 'payerEmail', 'amount', 'currency', 'status'];
+        const missingFields = requiredFields.filter(field => !paymentData[field]);
+        
+        if (missingFields.length > 0) {
+          throw new Error(`Missing required PayPal payment fields: ${missingFields.join(', ')}`);
+        }
+
         formattedPaymentData = {
           transactionId: paymentData.transactionId,
           payerId: paymentData.payerId,
@@ -761,11 +769,19 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
           currency: paymentData.currency,
           status: paymentData.status,
           createTime: paymentData.createTime,
-          updateTime: paymentData.updateTime
+          updateTime: paymentData.updateTime,
+          paymentMethod: 'paypal',
+          paymentProvider: 'paypal',
+          paymentType: 'online',
+          paymentStatus: 'COMPLETED'
         };
 
-        // Store in localStorage for persistence
-        localStorage.setItem('paypal_payment_response', JSON.stringify(formattedPaymentData));
+        // Store in localStorage with timestamp
+        const storageData = {
+          ...formattedPaymentData,
+          storedAt: new Date().toISOString()
+        };
+        localStorage.setItem('paypal_payment_response', JSON.stringify(storageData));
       }
 
       // Convert amount for PayPal
@@ -779,12 +795,17 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       if (draftOrderId) {
         const numericId = parseInt(draftOrderId, 10);
         if (!isNaN(numericId)) {
-          await orderApi.updateDraftOrder(numericId, {
-            paymentStatus: newPaymentStatus,
-            paymentDetails: formattedPaymentData,
-            status: 'processing',
-            lastUpdated: new Date().toISOString()
-          });
+          try {
+            await orderApi.updateDraftOrder(numericId, {
+              paymentStatus: newPaymentStatus,
+              paymentDetails: formattedPaymentData,
+              status: 'processing',
+              lastUpdated: new Date().toISOString()
+            });
+          } catch (updateError) {
+            console.error('Error updating draft order with payment details:', updateError);
+            // Continue with payment process even if draft update fails
+          }
         }
       }
 
