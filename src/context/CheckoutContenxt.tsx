@@ -86,6 +86,9 @@ export interface DraftOrder {
     isDraft: boolean;
     draftLastUpdatedAt: string;
     totalAmount: number;
+    shipping: number;
+    tax: number;
+    subtotal: number;
   };
 }
 
@@ -498,13 +501,38 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       isCreatingDraftOrder.current = true;
       setDraftOrderStatus('saving');
 
+      // Log the component's state values
+      console.log('Component state values:', {
+        totalAmount,
+        taxAmount,
+        shippingCost,
+        totalOrderAmount,
+        cartItems
+      });
+
+      // Calculate the final total amount
+      const finalTotalAmount = totalOrderAmount || (totalAmount + taxAmount + shippingCost);
+
+      // Ensure all values are numbers
+      const shippingCostNum = Number(shippingCost) || 0;
+      const taxAmountNum = Number(taxAmount) || 0;
+      const totalAmountNum = Number(totalAmount) || 0;
+
+      // Log the values before creating the draft order
+      console.log('Values before creating draft order:', {
+        shippingCost: shippingCostNum,
+        taxAmount: taxAmountNum,
+        totalAmount: totalAmountNum,
+        finalTotalAmount
+      });
+
       const draftOrderData: DraftOrder = {
         items: cartItems,
-        subtotal: totalAmount,
-        tax: taxAmount,
-        shipping: shippingCost,
-        total: totalOrderAmount,
-        totalAmount: totalOrderAmount,
+        subtotal: totalAmountNum,
+        tax: taxAmountNum,
+        shipping: shippingCostNum,
+        total: finalTotalAmount,
+        totalAmount: finalTotalAmount,
         totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
         shippingAddress: addressData,
         billingAddress: useSameAddressForBilling ? addressData : undefined,
@@ -518,12 +546,21 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         metadata: {
           isDraft: true,
           draftLastUpdatedAt: new Date().toISOString(),
-          totalAmount: totalOrderAmount,
+          totalAmount: finalTotalAmount,
+          shipping: shippingCostNum,
+          tax: taxAmountNum,
+          subtotal: totalAmountNum
         }
       };
 
+      // Log the draft order data before sending
+      console.log('Creating draft order with data:', JSON.stringify(draftOrderData, null, 2));
+
       // Create draft order using the API
       const createdDraft = await orderApi.createDraftOrder(draftOrderData);
+      
+      // Log the response
+      console.log('Draft order created:', JSON.stringify(createdDraft, null, 2));
       
       // Update state with the created draft
       setDraftOrder(createdDraft);
@@ -561,22 +598,31 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setDraftOrderStatus('saving');
       
+      // Ensure all values are numbers
+      const shippingCostNum = Number(shippingCost) || 0;
+      const taxAmountNum = Number(taxAmount) || 0;
+      const totalAmountNum = Number(totalAmount) || 0;
+      const finalTotalAmount = totalOrderAmount || (totalAmountNum + taxAmountNum + shippingCostNum);
+
       // Always include the current total amount from OrderSummary
       const updatedDraft: DraftOrder = {
         ...draftOrder!,
         ...updateData,
         lastUpdated: new Date().toISOString(),
         items: updateData.items || draftOrder!.items,
-        subtotal: totalAmount,
-        tax: taxAmount,
-        shipping: shippingCost,
-        total: totalOrderAmount,
-        totalAmount: totalOrderAmount,
+        subtotal: totalAmountNum,
+        tax: taxAmountNum,
+        shipping: shippingCostNum,
+        total: finalTotalAmount,
+        totalAmount: finalTotalAmount,
         metadata: {
           ...(draftOrder?.metadata || {}),
           isDraft: true,
           draftLastUpdatedAt: new Date().toISOString(),
-          totalAmount: totalOrderAmount,
+          totalAmount: finalTotalAmount,
+          shipping: shippingCostNum,
+          tax: taxAmountNum,
+          subtotal: totalAmountNum
         }
       };
 
@@ -584,28 +630,24 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updatedDraft.id) {
         localStorage.setItem('checkoutDraftOrderId', updatedDraft.id.toString());
       }
-      
+
       // Update state
       setDraftOrder(updatedDraft);
       setDraftOrderStatus('saved');
-
-      // Show success message for important updates
-      if (updateData.paymentStatus === 'paid') {
-        showToast.success('Payment completed successfully!');
-      } else if (updateData.shippingAddress) {
-        showToast.success('Shipping information saved!');
-      } else if (updateData.shippingMethod) {
-        showToast.success('Delivery method updated!');
-      }
 
       return updatedDraft;
     } catch (error) {
       console.error('Error updating draft order:', error);
       setDraftOrderStatus('error');
-      showToast.error('Failed to save your changes. Please try again.');
       throw error;
     }
-  }, [draftOrder, totalAmount, taxAmount, shippingCost, totalOrderAmount]);
+  }, [
+    draftOrder,
+    totalAmount,
+    taxAmount,
+    shippingCost,
+    totalOrderAmount
+  ]);
 
   const goToNextStep = useCallback(async () => {
     try {
@@ -816,11 +858,30 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
         const numericId = parseInt(draftOrderId, 10);
         if (!isNaN(numericId)) {
           try {
+            // Ensure all values are numbers
+            const shippingCostNum = Number(shippingCost) || 0;
+            const taxAmountNum = Number(taxAmount) || 0;
+            const totalAmountNum = Number(totalAmount) || 0;
+            const finalTotalAmount = totalOrderAmount || (totalAmountNum + taxAmountNum + shippingCostNum);
+
             await orderApi.updateDraftOrder(numericId, {
               paymentStatus: newPaymentStatus,
               paymentDetails: formattedPaymentData,
               status: 'processing',
-              lastUpdated: new Date().toISOString()
+              lastUpdated: new Date().toISOString(),
+              totalAmount: finalTotalAmount,
+              subtotal: totalAmountNum,
+              tax: taxAmountNum,
+              shipping: shippingCostNum,
+              total: finalTotalAmount,
+              metadata: {
+                isDraft: true,
+                draftLastUpdatedAt: new Date().toISOString(),
+                totalAmount: finalTotalAmount,
+                shipping: shippingCostNum,
+                tax: taxAmountNum,
+                subtotal: totalAmountNum
+              }
             });
           } catch (updateError) {
             console.error('Error updating draft order with payment details:', updateError);
@@ -839,7 +900,7 @@ export const CheckoutProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsProcessingOrder(false);
     }
-  }, [totalOrderAmount]);
+  }, [totalOrderAmount, totalAmount, taxAmount, shippingCost]);
 
   const submitOrder = async (): Promise<void> => {
     try {
