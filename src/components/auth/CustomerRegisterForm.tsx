@@ -5,13 +5,9 @@ import { Link } from 'react-router-dom';
 const CustomerRegisterForm: React.FC = () => {
   const { register, error, clearError, setAuthModalView } = useAuth();
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     password: '',
     confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordMatchError, setPasswordMatchError] = useState(false);
@@ -40,7 +36,12 @@ const CustomerRegisterForm: React.FC = () => {
 
     try {
       const { confirmPassword, ...registerData } = formData;
-      await register(registerData, 'customer');
+      // Set username to email before submitting
+      const dataToSubmit = {
+        ...registerData,
+        username: registerData.email
+      };
+      await register(dataToSubmit, 'customer');
       // On success, show login form
       setAuthModalView('login');
     } catch (err) {
@@ -62,22 +63,6 @@ const CustomerRegisterForm: React.FC = () => {
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="username" className="block text-gray-700 font-medium mb-2">
-            Username
-          </label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-            placeholder="Choose a username"
-          />
-        </div>
-        
-        <div className="mb-4">
           <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
             Email
           </label>
@@ -91,53 +76,9 @@ const CustomerRegisterForm: React.FC = () => {
             required
             placeholder="Your email address"
           />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label htmlFor="firstName" className="block text-gray-700 font-medium mb-2">
-              First Name
-            </label>
-            <input
-              type="text"
-              id="firstName"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="First name"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="lastName" className="block text-gray-700 font-medium mb-2">
-              Last Name
-            </label>
-            <input
-              type="text"
-              id="lastName"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Last name"
-            />
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label htmlFor="phone" className="block text-gray-700 font-medium mb-2">
-            Phone Number
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Phone number (optional)"
-          />
+          <p className="mt-1 text-sm text-gray-500">
+            This will be used as your username to log in
+          </p>
         </div>
         
         <div className="mb-4">
