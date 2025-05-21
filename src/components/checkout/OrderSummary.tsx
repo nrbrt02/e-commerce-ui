@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { CartItem } from "../../context/CartContext";
 
 interface OrderSummaryProps {
@@ -16,6 +16,14 @@ interface OrderSummaryProps {
   isLoading: boolean;
   handleProceedToCheckout: () => void;
   isProcessingCheckout: boolean;
+  selectedShipping: any;
+  showDetails: boolean;
+  onPriceUpdate?: (prices: {
+    subtotal: number;
+    shipping: number;
+    tax: number;
+    total: number;
+  }) => void;
 }
 
 const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -31,8 +39,28 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   setCouponApplied,
   applyCoupon,
   isLoading,
+  selectedShipping,
+  showDetails,
+  onPriceUpdate,
 }) => {
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const formatCurrency = (value: number) => {
+    return `Rwf ${value.toLocaleString()}`;
+  };
+
+  // Notify parent component of price updates
+  useEffect(() => {
+    if (onPriceUpdate) {
+      const total = totalAmount + shippingCost + taxAmount;
+      onPriceUpdate({
+        subtotal: totalAmount,
+        shipping: shippingCost,
+        tax: taxAmount,
+        total: total
+      });
+    }
+  }, [totalAmount, shippingCost, taxAmount, onPriceUpdate]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -62,10 +90,11 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
 
             <div className="flex justify-between">
               <span className="text-gray-600">Shipping</span>
-              <span className="text-green-600">
-                {shippingCost === 0
-                  ? "FREE"
-                  : `Rwf ${shippingCost.toLocaleString()}`}
+              <span className="text-gray-800 font-medium">
+                {shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}
+                {selectedShipping && showDetails && (
+                  <span className="block text-xs text-gray-500">{selectedShipping.name}</span>
+                )}
               </span>
             </div>
 
@@ -80,7 +109,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
               <div className="flex justify-between font-semibold">
                 <span className="text-gray-800">Total Amount</span>
                 <span className="text-gray-900">
-                  Rwf{Math.round(totalOrderAmount + taxAmount).toLocaleString()}
+                  Rwf{Math.round(totalOrderAmount).toLocaleString()}
                 </span>
               </div>
               {totalSavings > 0 && (
