@@ -1,5 +1,5 @@
 // src/pages/SearchResults.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useSearch } from '../../context/SearchContext';
 import ProductCard from '../../components/products/ProductCard';
@@ -16,6 +16,9 @@ const SearchResults: React.FC = () => {
     performSearch,
     searchInCategory
   } = useSearch();
+  
+  // Keep track of previous search params
+  const prevSearchRef = useRef(location.search);
 
   // Parse URL parameters
   useEffect(() => {
@@ -23,7 +26,8 @@ const SearchResults: React.FC = () => {
     const queryParam = params.get('query');
     const categoryIdParam = params.get('categoryId');
     
-    if (queryParam) {
+    // Only perform search if we're navigating to the page or the search params have changed
+    if (queryParam && prevSearchRef.current !== location.search) {
       setQuery(queryParam);
       
       if (categoryIdParam) {
@@ -31,6 +35,9 @@ const SearchResults: React.FC = () => {
       } else {
         performSearch(queryParam);
       }
+      
+      // Update the previous search params
+      prevSearchRef.current = location.search;
     }
   }, [location.search, setQuery, performSearch, searchInCategory]);
 
@@ -84,7 +91,6 @@ const SearchResults: React.FC = () => {
       {!loading && !error && results.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {results.map((product) => (
-            // Use your ProductCard component instead of the custom implementation
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

@@ -1,17 +1,21 @@
 // src/components/reviews/ReviewList.tsx
 import React from "react";
 import { Review } from "../../services/reviewService";
+import { formatDate } from "../../utils/formatters";
 import { 
   StarIcon, 
   EyeIcon, 
   PencilIcon, 
   TrashIcon, 
-  HandThumbUpIcon,
   CheckIcon,
   XMarkIcon,
   ShieldCheckIcon,
-  ShoppingBagIcon
+  ShoppingBagIcon,
+  CheckCircleIcon,
+  HandThumbUpIcon
 } from "@heroicons/react/24/outline";
+import { StarIcon as StarOutlineIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "../../context/AuthContext";
 
 interface ReviewListProps {
   reviews: Review[];
@@ -22,6 +26,9 @@ interface ReviewListProps {
   onVoteHelpful: (reviewId: string) => void;
   onToggleApproval: (reviewId: string) => void;
   onToggleVerified: (reviewId: string) => void;
+  onApprove?: (id: string) => void;
+  onVerify?: (id: string) => void;
+  showActions?: boolean;
 }
 
 const ReviewList: React.FC<ReviewListProps> = ({
@@ -33,7 +40,13 @@ const ReviewList: React.FC<ReviewListProps> = ({
   onVoteHelpful,
   onToggleApproval,
   onToggleVerified,
+  onApprove,
+  onVerify,
+  showActions = true,
 }) => {
+  const { user } = useAuth();
+  const isSupplier = user?.role === 'supplier';
+console.log(isSupplier);
   if (isLoading) {
     return (
       <div className="bg-white shadow-md rounded-lg p-6">
@@ -77,6 +90,31 @@ const ReviewList: React.FC<ReviewListProps> = ({
     );
   }
 
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span key={star} className="text-yellow-400">
+            {star <= rating ? (
+              <StarIcon className="h-5 w-5 fill-current" />
+            ) : (
+              <StarOutlineIcon className="h-5 w-5" />
+            )}
+          </span>
+        ))}
+        <span className="ml-2 text-sm text-gray-600">({rating})</span>
+      </div>
+    );
+  };
+
+  const handleApprove = async (reviewId: string) => {
+    try {
+      await onToggleApproval(reviewId);
+    } catch (error) {
+      console.error('Error toggling review approval:', error);
+    }
+  };
+
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <div className="divide-y divide-gray-200">
@@ -85,37 +123,7 @@ const ReviewList: React.FC<ReviewListProps> = ({
           
           return (
             <div key={review.id} className="p-4 hover:bg-gray-50">
-              <div className="flex items-start space-x-4">
-                {/* Product Image */}
-                <div className="flex-shrink-0">
-                  {review.product?.imageUrls?.[0] ? (
-                    <img
-                      src={review.product.imageUrls[0]}
-                      alt={review.product?.name || 'Product image'}
-                      className="h-16 w-16 object-cover rounded-md"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image';
-                      }}
-                    />
-                  ) : (
-                    <div className="h-16 w-16 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
-                      <svg
-                        className="h-8 w-8"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
+              <div className="flex items-start">
                 {/* Review Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -123,12 +131,7 @@ const ReviewList: React.FC<ReviewListProps> = ({
                       {review.product?.name || "Unknown Product"}
                     </h3>
                     <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <StarIcon
-                          key={i}
-                          className={`h-5 w-5 ${i < (review.rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
-                        />
-                      ))}
+                      {renderStars(review.rating)}
                     </div>
                   </div>
 
@@ -140,10 +143,11 @@ const ReviewList: React.FC<ReviewListProps> = ({
 
                   <div className="mt-2 flex items-center text-sm text-gray-500 space-x-4">
                     <span>
-                      Reviewed on {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'Unknown date'}
+                      Reviewed on {formatDate(review.createdAt)}
                     </span>
                     {review.isVerifiedPurchase && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <ShieldCheckIcon className="h-4 w-4 mr-1" />
                         Verified Purchase
                       </span>
                     )}
@@ -164,7 +168,7 @@ const ReviewList: React.FC<ReviewListProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col space-y-2">
+                <div className="flex flex-col space-y-2 ml-4">
                   <button
                     onClick={() => review && onView(review)}
                     className="text-blue-600 hover:text-blue-900 focus:outline-none focus:underline flex items-center justify-center"
@@ -172,34 +176,10 @@ const ReviewList: React.FC<ReviewListProps> = ({
                     <EyeIcon className="h-4 w-4 mr-1" />
                     View
                   </button>
-                  
-                  <button
-                    onClick={() => review && onEdit(review)}
-                    className="text-sky-600 hover:text-sky-900 focus:outline-none focus:underline flex items-center justify-center"
-                  >
-                    <PencilIcon className="h-4 w-4 mr-1" />
-                    Edit
-                  </button>
-                  
-                  <button
-                    onClick={() => review?.id && onDelete(review.id)}
-                    className="text-red-600 hover:text-red-900 focus:outline-none focus:underline flex items-center justify-center"
-                  >
-                    <TrashIcon className="h-4 w-4 mr-1" />
-                    Delete
-                  </button>
-                  
-                  <button
-                    onClick={() => review?.id && onVoteHelpful(review.id)}
-                    className="text-gray-600 hover:text-gray-900 focus:outline-none focus:underline flex items-center justify-center"
-                  >
-                    <HandThumbUpIcon className="h-4 w-4 mr-1" />
-                    Helpful
-                  </button>
 
-                  {/* Admin actions */}
+                  {/* Approval button - available to all users */}
                   <button
-                    onClick={() => review?.id && onToggleApproval(review.id)}
+                    onClick={() => handleApprove(review.id)}
                     className={`flex items-center justify-center ${
                       review.isApproved 
                         ? "text-red-600 hover:text-red-800" 
@@ -218,27 +198,58 @@ const ReviewList: React.FC<ReviewListProps> = ({
                       </>
                     )}
                   </button>
+                  
+                  {!isSupplier && showActions && (
+                    <>
+                      <button
+                        onClick={() => review && onEdit(review)}
+                        className="text-sky-600 hover:text-sky-900 focus:outline-none focus:underline flex items-center justify-center"
+                      >
+                        <PencilIcon className="h-4 w-4 mr-1" />
+                        Edit
+                      </button>
+                      
+                      <button
+                        onClick={() => review?.id && onDelete(review.id)}
+                        className="text-red-600 hover:text-red-900 focus:outline-none focus:underline flex items-center justify-center"
+                      >
+                        <TrashIcon className="h-4 w-4 mr-1" />
+                        Delete
+                      </button>
+                      
+                      <button
+                        onClick={() => review?.id && onVoteHelpful(review.id)}
+                        className="text-gray-600 hover:text-gray-900 focus:outline-none focus:underline flex items-center justify-center"
+                      >
+                        <HandThumbUpIcon className="h-4 w-4 mr-1" />
+                        Helpful
+                      </button>
 
-                  <button
-                    onClick={() => review?.id && onToggleVerified(review.id)}
-                    className={`flex items-center justify-center ${
-                      review.isVerifiedPurchase 
-                        ? "text-red-600 hover:text-red-800" 
-                        : "text-green-600 hover:text-green-800"
-                    }`}
-                  >
-                    {review.isVerifiedPurchase ? (
-                      <>
-                        <ShieldCheckIcon className="h-4 w-4 mr-1" />
-                        Unverify
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBagIcon className="h-4 w-4 mr-1" />
-                        Verify Purchase
-                      </>
-                    )}
-                  </button>
+                      {/* Verify button - only for non-suppliers */}
+                      {onVerify && (
+                        <button
+                          onClick={() => onVerify(review.id)}
+                          className={`flex items-center justify-center ${
+                            review.isVerifiedPurchase 
+                              ? "text-red-600 hover:text-red-800" 
+                              : "text-green-600 hover:text-green-800"
+                          }`}
+                        >
+                          {review.isVerifiedPurchase ? (
+                            <>
+                              <XMarkIcon className="h-4 w-4 mr-1" />
+                              Unverify
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircleIcon className="h-4 w-4 mr-1" />
+                              Verify
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

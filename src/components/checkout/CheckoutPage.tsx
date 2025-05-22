@@ -52,6 +52,7 @@ const CheckoutPage: React.FC = () => {
     validatePayment,
     deliveryOptions,
     selectedShippingMethod,
+    handlePriceUpdate,
   } = useCheckout();
 
   const cartContext = useCart();
@@ -318,7 +319,7 @@ const CheckoutPage: React.FC = () => {
             totalSavings={totalSavings}
             shippingCost={shippingCost}
             taxAmount={taxAmount}
-            totalOrderAmount={total}
+            totalOrderAmount={totalOrderAmount}
             couponCode={couponCode}
             setCouponCode={setCouponCode}
             couponApplied={couponApplied}
@@ -326,7 +327,10 @@ const CheckoutPage: React.FC = () => {
             applyCoupon={applyCoupon}
             isLoading={isLoading}
             handleProceedToCheckout={handleProceedToCheckout}
-            isProcessingCheckout={isProcessingCheckout}
+            isProcessingCheckout={isProcessingOrder}
+            selectedShipping={selectedShippingMethod}
+            showDetails={true}
+            onPriceUpdate={handlePriceUpdate}
           />
         </div>
       </div>

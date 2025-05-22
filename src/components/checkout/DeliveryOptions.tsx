@@ -99,7 +99,7 @@ const DeliveryOptions: React.FC = () => {
                 {option.estimatedDelivery && (
                   <p className="text-gray-600 text-sm mt-1">
                     <i className="far fa-calendar-alt mr-1"></i>
-                    Estimated delivery: {option.estimatedDelivery}
+                    Estimated delivery: {new Date(option.estimatedDelivery).toLocaleDateString()}
                   </p>
                 )}
                 

@@ -387,23 +387,29 @@ const Cart: React.FC = () => {
 
               {/* Checkout Button */}
               <div className="p-6">
-                <button
-                  onClick={handleProceedToCheckout}
-                  className="w-full bg-sky-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center hover:bg-sky-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  disabled={cartItems.length === 0 || isProcessingCheckout}
-                >
-                  {isProcessingCheckout ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      Proceed to Checkout
-                      <i className="fas fa-arrow-right ml-2"></i>
-                    </>
-                  )}
-                </button>
+                <div className="mt-8 flex justify-end">
+                  <button
+                    onClick={handleProceedToCheckout}
+                    disabled={isProcessingCheckout || cartItems.length === 0}
+                    className={`px-6 py-3 rounded-md text-white font-medium ${
+                      isProcessingCheckout || cartItems.length === 0
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-sky-600 hover:bg-sky-700'
+                    }`}
+                  >
+                    {isProcessingCheckout ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : (
+                      'Proceed to Checkout'
+                    )}
+                  </button>
+                </div>
 
                 <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-600">
                   <i className="fas fa-lock"></i>

@@ -81,6 +81,7 @@ const PaymentForm: React.FC = () => {
         paymentMethod: "paypal",
         paymentDetails: paymentInfo,
         paymentStatus: "paid" as PaymentStatus,
+        lastUpdated: new Date().toISOString()
       };
 
       // This will make the PUT request to update the order
@@ -90,12 +91,16 @@ const PaymentForm: React.FC = () => {
       );
       console.log("Draft order updated with PayPal payment:", updatedDraft);
 
+      // Show success message
+      showToast.success('Payment completed successfully!');
+
       // Proceed to next step
       goToNextStep();
     } catch (error) {
       console.error("Error processing PayPal payment:", error);
       setPaymentStatus("failed");
       setErrors(["Failed to process payment. Please try again."]);
+      showToast.error('Failed to process payment. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -107,7 +112,9 @@ const PaymentForm: React.FC = () => {
     setPaymentStatus("failed" as PaymentStatus);
     updateDraftOrder({
       paymentStatus: "failed" as PaymentStatus,
+      lastUpdated: new Date().toISOString()
     });
+    showToast.error('Payment failed. Please try again.');
   };
 
   const handlePayPalCancel = () => {
@@ -116,7 +123,9 @@ const PaymentForm: React.FC = () => {
     setPaymentStatus("cancelled" as PaymentStatus);
     updateDraftOrder({
       paymentStatus: "cancelled" as PaymentStatus,
+      lastUpdated: new Date().toISOString()
     });
+    showToast.info('Payment was cancelled.');
   };
 
   const handleCreditCardSubmit = async (cardData: any) => {

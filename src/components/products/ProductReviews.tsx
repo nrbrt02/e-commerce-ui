@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { format } from "date-fns";
+import { AUTH_TOKEN_KEY } from "../../constants/auth-constants";
 
 interface ReviewCustomer {
   id: number;
@@ -213,10 +214,9 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
     setSubmitSuccess(false);
 
     try {
-      const token = localStorage.getItem("fast_shopping_token");
-      
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
       if (!token) {
-        throw new Error("You must be logged in to submit a review");
+        throw new Error("Authentication token not found. Please log in again.");
       }
 
       const endpoint = `${apiBaseUrl}/products/${productId}/reviews`;
@@ -224,14 +224,25 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`,
+          "Accept": "application/json"
         },
-        body: JSON.stringify(newReview),
+        credentials: "include",
+        body: JSON.stringify({
+          ...newReview,
+          productId: productId
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          openAuthModal("login");
+          throw new Error("Your session has expired. Please log in again.");
+        }
         throw new Error(data.message || "Failed to submit review");
       }
 

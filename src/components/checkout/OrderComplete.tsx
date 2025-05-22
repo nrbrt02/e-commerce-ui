@@ -31,7 +31,7 @@ const OrderComplete: React.FC = () => {
         </div>
 
         <div className="border-t border-gray-200 pt-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <h3 className="text-lg font-semibold mb-4">Order Information</h3>
               <div className="space-y-2">
@@ -44,18 +44,41 @@ const OrderComplete: React.FC = () => {
             </div>
 
             <div>
+              <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
+              <div className="space-y-2">
+                {order.paymentMethod === 'paypal' && order.paymentDetails && (
+                  <>
+                    <p><span className="font-medium">Transaction ID:</span> {order.paymentDetails.transactionId || 'N/A'}</p>
+                    <p><span className="font-medium">Payer ID:</span> {order.paymentDetails.payerId || 'N/A'}</p>
+                    <p><span className="font-medium">Email:</span> {order.paymentDetails.payerEmail || 'N/A'}</p>
+                    <p><span className="font-medium">Amount:</span> {order.paymentDetails.amount} {order.paymentDetails.currency}</p>
+                    <p><span className="font-medium">Status:</span> {order.paymentDetails.status}</p>
+                    <p><span className="font-medium">Payment Date:</span> {order.paymentDetails.createTime ? new Date(order.paymentDetails.createTime).toLocaleString() : 'N/A'}</p>
+                  </>
+                )}
+                {order.paymentMethod === 'card' && order.paymentDetails && (
+                  <>
+                    <p><span className="font-medium">Card Type:</span> {order.paymentDetails.cardType}</p>
+                    <p><span className="font-medium">Last Four:</span> {order.paymentDetails.lastFour}</p>
+                    <p><span className="font-medium">Expiry Date:</span> {order.paymentDetails.expiryDate}</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div>
               <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
               <div className="space-y-2">
                 <p><span className="font-medium">Method:</span> <span className="capitalize">{order.shippingMethod}</span></p>
                 <p><span className="font-medium">Address:</span></p>
-                <div className="pl-4">
-                  <p>{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
-                  <p>{order.shippingAddress.address}</p>
-                  {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
-                  <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}</p>
-                  <p>{order.shippingAddress.country}</p>
-                  <p>{order.shippingAddress.phone}</p>
-                  <p>{order.shippingAddress.email}</p>
+                <div className="pl-4 space-y-1">
+                  <p className="text-gray-600">{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
+                  <p className="text-gray-600">{order.shippingAddress.address}</p>
+                  {order.shippingAddress.address2 && <p className="text-gray-600">{order.shippingAddress.address2}</p>}
+                  <p className="text-gray-600">{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}</p>
+                  <p className="text-gray-600">{order.shippingAddress.country}</p>
+                  <p className="text-gray-600">Phone: {order.shippingAddress.phone}</p>
+                  <p className="text-gray-600">Email: {order.shippingAddress.email}</p>
                 </div>
               </div>
             </div>
@@ -89,12 +112,12 @@ const OrderComplete: React.FC = () => {
       </div>
 
       <div className="text-center">
-        <button
-          onClick={() => window.location.href = '/orders'}
+        <Link
+          to="/accounts"
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
         >
           View Order History
-        </button>
+        </Link>
       </div>
     </div>
   );

@@ -56,21 +56,28 @@ const OrderReview: React.FC<OrderReviewProps> = ({
     const checkStoredPayment = async () => {
       try {
         const storedPayment = localStorage.getItem('paypal_payment_response');
-        if (storedPayment && paymentMethod === "paypal" && (!paymentDetails || paymentStatus === "pending")) {
-          console.log("Found PayPal payment in localStorage that needs to be applied to the order");
+        if (storedPayment && paymentMethod === "paypal") {
+          console.log("Found PayPal payment in localStorage:", storedPayment);
           const paymentInfo = JSON.parse(storedPayment);
+
+          // Update payment details in context
+          if (setPaymentDetails) {
+            setPaymentDetails(paymentInfo);
+          }
+          if (setPaymentStatus) {
+            setPaymentStatus(paymentInfo.status === "COMPLETED" ? "paid" : "pending");
+          }
 
           const draftOrderId = localStorage.getItem("checkoutDraftOrderId");
           if (draftOrderId) {
             const updateData = {
               paymentMethod: "paypal",
               paymentDetails: paymentInfo,
-              paymentStatus: "paid" as PaymentStatus,
+              paymentStatus: paymentInfo.status === "COMPLETED" ? "paid" : "pending",
+              lastUpdated: new Date().toISOString()
             };
 
             await orderApi.updateDraftOrder(draftOrderId, updateData);
-            if (setPaymentDetails) setPaymentDetails(paymentInfo);
-            if (setPaymentStatus) setPaymentStatus("paid");
           }
         }
       } catch (error) {
@@ -79,7 +86,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
     };
 
     checkStoredPayment();
-  }, [paymentMethod, paymentDetails, paymentStatus, setPaymentDetails, setPaymentStatus]);
+  }, [paymentMethod, setPaymentDetails, setPaymentStatus]);
 
   const formatAddress = (address: any) => {
     if (!address) return "No address provided";
@@ -123,19 +130,43 @@ const OrderReview: React.FC<OrderReviewProps> = ({
 
     switch (selectedPaymentMethod) {
       case "paypal":
-        if (paymentData) {
+        // First try to get payment details from context
+        let paymentInfo = paymentData;
+        
+        // If not in context, try to get from localStorage
+        if (!paymentInfo || Object.keys(paymentInfo).length === 0) {
+          const storedPayment = localStorage.getItem('paypal_payment_response');
+          if (storedPayment) {
+            try {
+              paymentInfo = JSON.parse(storedPayment);
+            } catch (e) {
+              console.error("Error parsing stored payment:", e);
+            }
+          }
+        }
+
+        if (paymentInfo) {
           return (
             <div className="space-y-1">
               <p className="font-medium text-gray-800">PayPal</p>
               <p className="text-gray-600">
-                Transaction ID: {paymentData.transactionId || "N/A"}
+                Transaction ID: {paymentInfo.transactionId || "N/A"}
               </p>
               <p className="text-gray-600">
-                Email: {paymentData.payerEmail || "N/A"}
+                Payer ID: {paymentInfo.payerId || "N/A"}
               </p>
-              <div className="mt-2">
-                <PaymentStatusBadge status={paymentStatus} />
-              </div>
+              <p className="text-gray-600">
+                Email: {paymentInfo.payerEmail || "N/A"}
+              </p>
+              <p className="text-gray-600">
+                Amount: {paymentInfo.amount} {paymentInfo.currency}
+              </p>
+              <p className="text-gray-600">
+                Status: {paymentInfo.status}
+              </p>
+              <p className="text-gray-600">
+                Payment Date: {paymentInfo.createTime ? new Date(paymentInfo.createTime).toLocaleString() : "N/A"}
+              </p>
             </div>
           );
         }
@@ -152,9 +183,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
               <p className="text-gray-600">
                 Expires: {paymentData.expiryDate}
               </p>
-              <div className="mt-2">
-                <PaymentStatusBadge status={paymentStatus} />
-              </div>
             </div>
           );
         }
@@ -370,48 +398,6 @@ const OrderReview: React.FC<OrderReviewProps> = ({
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <h3 className="text-lg font-medium text-gray-800 mb-4">Order Summary</h3>
-        <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="font-medium text-gray-800">
-                {formatCurrency(subtotal)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="font-medium text-gray-800">
-                {formatCurrency(shipping)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tax (18% VAT)</span>
-              <span className="font-medium text-gray-800">
-                {formatCurrency(tax)}
-              </span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Discount</span>
-                <span className="font-medium text-green-600">
-                  -{formatCurrency(discountAmount)}
-                </span>
-              </div>
-            )}
-            <div className="border-t border-gray-200 pt-3">
-              <div className="flex justify-between">
-                <span className="text-lg font-semibold text-gray-800">Total</span>
-                <span className="text-lg font-bold text-gray-800">
-                  {formatCurrency(total)}
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

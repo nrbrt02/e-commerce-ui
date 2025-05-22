@@ -34,6 +34,23 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
     fetchOrderDetails();
   }, [isOpen, order.id]);
 
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800',
+      processing: 'bg-blue-100 text-blue-800',
+      paid: 'bg-green-100 text-green-800',
+      unpaid: 'bg-red-100 text-red-800',
+    };
+    return colors[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatAmount = (amount: string | number): string => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return formatCurrency(num);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -41,9 +58,19 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
       <div className="relative bg-white rounded-lg shadow-xl m-4 max-w-2xl w-full md:max-w-4xl">
         {/* Modal header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            Order Details: {order.orderNumber}
-          </h3>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">
+              Order Details: {order.orderNumber}
+            </h3>
+            <div className="flex gap-2 mt-1">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+              </span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.paymentStatus)}`}>
+                {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+              </span>
+            </div>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
@@ -134,10 +161,6 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                           <h4 className="font-medium text-gray-700 mb-2">Order Summary</h4>
                           <dl className="space-y-1">
                             <div className="flex justify-between text-sm">
-                              <dt className="text-gray-500">Status:</dt>
-                              <dd className="font-medium">{fullOrder.status.charAt(0).toUpperCase() + fullOrder.status.slice(1)}</dd>
-                            </div>
-                            <div className="flex justify-between text-sm">
                               <dt className="text-gray-500">Order Date:</dt>
                               <dd>{formatDate(fullOrder.createdAt)}</dd>
                             </div>
@@ -151,7 +174,11 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                             </div>
                             <div className="flex justify-between text-sm">
                               <dt className="text-gray-500">Total Amount:</dt>
-                              <dd className="font-medium">{formatCurrency(fullOrder.totalAmount)}</dd>
+                              <dd className="font-medium">{formatAmount(fullOrder.totalAmount)}</dd>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <dt className="text-gray-500">Shipping Method:</dt>
+                              <dd className="capitalize">{fullOrder.shippingMethod?.replace('_', ' ') || 'Not specified'}</dd>
                             </div>
                           </dl>
                         </div>
@@ -161,19 +188,25 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                           <h4 className="font-medium text-gray-700 mb-2">Payment Information</h4>
                           <dl className="space-y-1">
                             <div className="flex justify-between text-sm">
-                              <dt className="text-gray-500">Payment Status:</dt>
-                              <dd className="font-medium">{fullOrder.paymentStatus.charAt(0).toUpperCase() + fullOrder.paymentStatus.slice(1)}</dd>
+                              <dt className="text-gray-500">Payment Method:</dt>
+                              <dd className="capitalize">{fullOrder.paymentMethod}</dd>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <dt className="text-gray-500">Payment Method:</dt>
-                              <dd>{fullOrder.paymentMethod || 'Not specified'}</dd>
+                              <dt className="text-gray-500">Transaction ID:</dt>
+                              <dd className="font-mono text-xs">{fullOrder.paymentDetails.transactionId}</dd>
                             </div>
-                            {fullOrder.paymentMethod === 'credit_card' && fullOrder.paymentDetails && (
-                              <div className="flex justify-between text-sm">
-                                <dt className="text-gray-500">Card:</dt>
-                                <dd>•••• •••• •••• {(fullOrder.paymentDetails as any).last4 || '1234'}</dd>
-                              </div>
-                            )}
+                            <div className="flex justify-between text-sm">
+                              <dt className="text-gray-500">Amount:</dt>
+                              <dd>{formatAmount(fullOrder.paymentDetails.amount)}</dd>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <dt className="text-gray-500">Currency:</dt>
+                              <dd>{fullOrder.paymentDetails.currency}</dd>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <dt className="text-gray-500">Payer Email:</dt>
+                              <dd>{fullOrder.paymentDetails.payerEmail}</dd>
+                            </div>
                           </dl>
                         </div>
                       </div>
@@ -217,46 +250,34 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                           {fullOrder.items.map((item: OrderItem) => (
                             <div key={item.id} className="border rounded-lg overflow-hidden">
                               <div className="p-4 flex items-start">
-                                {item.product?.imageUrl ? (
-                                  <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden mr-4">
-                                    <img 
-                                      src={item.product.imageUrl} 
-                                      alt={item.name} 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md mr-4 flex items-center justify-center">
-                                    <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                  </div>
-                                )}
+                                <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md mr-4 flex items-center justify-center">
+                                  <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
                                 <div className="flex-1">
                                   <h5 className="font-medium text-gray-900">{item.name}</h5>
                                   <p className="text-sm text-gray-500">SKU: {item.sku}</p>
                                   <div className="mt-1 flex justify-between text-sm">
-                                    <p>{item.quantity} × {formatCurrency(item.unitPrice)}</p>
-                                    <p className="font-medium">{formatCurrency(item.total)}</p>
+                                    <p>{item.quantity} × {formatAmount(item.unitPrice)}</p>
+                                    <p className="font-medium">{formatAmount(item.total)}</p>
                                   </div>
                                 </div>
                               </div>
-                              {(item.discount > 0 || item.tax > 0) && (
-                                <div className="bg-gray-50 px-4 py-2 flex items-center justify-between text-xs text-gray-500">
-                                  <div>
-                                    <span>Subtotal: {formatCurrency(item.subtotal)}</span>
-                                    {item.discount > 0 && (
-                                      <span className="ml-2">Discount: -{formatCurrency(item.discount)}</span>
-                                    )}
-                                    {item.tax > 0 && (
-                                      <span className="ml-2">Tax: +{formatCurrency(item.tax)}</span>
-                                    )}
-                                  </div>
-                                  <div className="font-medium">
-                                    Total: {formatCurrency(item.total)}
-                                  </div>
+                              <div className="bg-gray-50 px-4 py-2 flex items-center justify-between text-xs text-gray-500">
+                                <div>
+                                  <span>Subtotal: {formatAmount(item.subtotal)}</span>
+                                  {parseFloat(item.discount) > 0 && (
+                                    <span className="ml-2">Discount: -{formatAmount(item.discount)}</span>
+                                  )}
+                                  {parseFloat(item.tax) > 0 && (
+                                    <span className="ml-2">Tax: +{formatAmount(item.tax)}</span>
+                                  )}
                                 </div>
-                              )}
+                                <div className="font-medium">
+                                  Total: {formatAmount(item.total)}
+                                </div>
+                              </div>
                             </div>
                           ))}
 
@@ -264,33 +285,35 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                           <div className="mt-4 border-t pt-4">
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-600">Subtotal:</span>
-                              <span>{formatCurrency(
-                                fullOrder.items.reduce((sum: number, item: OrderItem) => sum + item.subtotal, 0)
+                              <span>{formatAmount(
+                                fullOrder.items.reduce((sum: number, item: OrderItem) => 
+                                  sum + parseFloat(item.subtotal), 0
+                                )
                               )}</span>
                             </div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-600">Discounts:</span>
-                              <span>-{formatCurrency(
-                                fullOrder.items.reduce((sum: number, item: OrderItem) => sum + item.discount, 0)
+                              <span>-{formatAmount(
+                                fullOrder.items.reduce((sum: number, item: OrderItem) => 
+                                  sum + parseFloat(item.discount), 0
+                                )
                               )}</span>
                             </div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-600">Tax:</span>
-                              <span>{formatCurrency(
-                                fullOrder.items.reduce((sum: number, item: OrderItem) => sum + item.tax, 0)
+                              <span>{formatAmount(
+                                fullOrder.items.reduce((sum: number, item: OrderItem) => 
+                                  sum + parseFloat(item.tax), 0
+                                )
                               )}</span>
                             </div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-600">Shipping:</span>
-                              <span>{formatCurrency(
-                                fullOrder.totalAmount - fullOrder.items.reduce(
-                                  (sum: number, item: OrderItem) => sum + item.total, 0
-                                )
-                              )}</span>
+                              <span>{formatAmount(fullOrder.metadata.shipping)}</span>
                             </div>
                             <div className="flex justify-between font-medium text-base mt-2 pt-2 border-t">
                               <span>Total:</span>
-                              <span>{formatCurrency(fullOrder.totalAmount)}</span>
+                              <span>{formatAmount(fullOrder.totalAmount)}</span>
                             </div>
                           </div>
                         </div>
@@ -303,59 +326,33 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                       {/* Shipping Address */}
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium text-gray-700 mb-2">Shipping Address</h4>
-                        {!fullOrder.shippingAddress ? (
-                          <p className="text-sm text-gray-500">No shipping address provided.</p>
-                        ) : (
-                          <address className="not-italic text-sm text-gray-600 space-y-1">
-                            <p>{fullOrder.shippingAddress.firstName} {fullOrder.shippingAddress.lastName}</p>
-                            <p>{fullOrder.shippingAddress.addressLine1}</p>
-                            {fullOrder.shippingAddress.addressLine2 && (
-                              <p>{fullOrder.shippingAddress.addressLine2}</p>
-                            )}
-                            <p>
-                              {fullOrder.shippingAddress.city}, {fullOrder.shippingAddress.state} {' '}
-                              {fullOrder.shippingAddress.zipCode || fullOrder.shippingAddress.postalCode}
-                            </p>
-                            <p>{fullOrder.shippingAddress.country}</p>
-                            {fullOrder.shippingAddress.phone && (
-                              <p>Phone: {fullOrder.shippingAddress.phone}</p>
-                            )}
-                          </address>
-                        )}
-                        
-                        {fullOrder.shippingMethod && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <h5 className="text-sm font-medium text-gray-700 mb-1">Shipping Method</h5>
-                            <p className="text-sm text-gray-600">{
-                              fullOrder.shippingMethod.charAt(0).toUpperCase() + 
-                              fullOrder.shippingMethod.slice(1).replace('_', ' ')
-                            }</p>
-                          </div>
-                        )}
+                        <address className="not-italic text-sm text-gray-600 space-y-1">
+                          <p className="font-medium">{fullOrder.shippingAddress.firstName} {fullOrder.shippingAddress.lastName}</p>
+                          <p>{fullOrder.shippingAddress.address}</p>
+                          {fullOrder.shippingAddress.address2 && (
+                            <p>{fullOrder.shippingAddress.address2}</p>
+                          )}
+                          <p>{fullOrder.shippingAddress.city}, {fullOrder.shippingAddress.state}</p>
+                          <p>{fullOrder.shippingAddress.country} {fullOrder.shippingAddress.postalCode}</p>
+                          <p className="mt-2">Email: {fullOrder.shippingAddress.email}</p>
+                          <p>Phone: {fullOrder.shippingAddress.phone}</p>
+                        </address>
                       </div>
 
                       {/* Billing Address */}
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium text-gray-700 mb-2">Billing Address</h4>
-                        {!fullOrder.billingAddress ? (
-                          <p className="text-sm text-gray-500">No billing address provided.</p>
-                        ) : (
-                          <address className="not-italic text-sm text-gray-600 space-y-1">
-                            <p>{fullOrder.billingAddress.firstName} {fullOrder.billingAddress.lastName}</p>
-                            <p>{fullOrder.billingAddress.addressLine1}</p>
-                            {fullOrder.billingAddress.addressLine2 && (
-                              <p>{fullOrder.billingAddress.addressLine2}</p>
-                            )}
-                            <p>
-                              {fullOrder.billingAddress.city}, {fullOrder.billingAddress.state} {' '}
-                              {fullOrder.billingAddress.zipCode || fullOrder.billingAddress.postalCode}
-                            </p>
-                            <p>{fullOrder.billingAddress.country}</p>
-                            {fullOrder.billingAddress.phone && (
-                              <p>Phone: {fullOrder.billingAddress.phone}</p>
-                            )}
-                          </address>
-                        )}
+                        <address className="not-italic text-sm text-gray-600 space-y-1">
+                          <p className="font-medium">{fullOrder.billingAddress.firstName} {fullOrder.billingAddress.lastName}</p>
+                          <p>{fullOrder.billingAddress.address}</p>
+                          {fullOrder.billingAddress.address2 && (
+                            <p>{fullOrder.billingAddress.address2}</p>
+                          )}
+                          <p>{fullOrder.billingAddress.city}, {fullOrder.billingAddress.state}</p>
+                          <p>{fullOrder.billingAddress.country} {fullOrder.billingAddress.postalCode}</p>
+                          <p className="mt-2">Email: {fullOrder.billingAddress.email}</p>
+                          <p>Phone: {fullOrder.billingAddress.phone}</p>
+                        </address>
                       </div>
                     </div>
                   )}
@@ -432,29 +429,6 @@ const ViewOrderModal: React.FC<ViewOrderModalProps> = ({ isOpen, onClose, order 
                               </li>
                             </ul>
                           </div>
-
-                          {/* Shipment details */}
-                          {fullOrder.status === 'shipped' || fullOrder.status === 'delivered' || fullOrder.status === 'completed' ? (
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <h5 className="font-medium text-gray-700 mb-2">Shipment Details</h5>
-                              <dl className="space-y-2">
-                                <div className="grid grid-cols-2 gap-1 text-sm">
-                                  <dt className="text-gray-500">Carrier:</dt>
-                                  <dd>{(fullOrder.metadata as any)?.carrier || 'Standard Shipping'}</dd>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1 text-sm">
-                                  <dt className="text-gray-500">Tracking Number:</dt>
-                                  <dd>{(fullOrder.metadata as any)?.trackingNumber || 'N/A'}</dd>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1 text-sm">
-                                  <dt className="text-gray-500">Estimated Delivery:</dt>
-                                  <dd>{(fullOrder.metadata as any)?.estimatedDelivery 
-                                    ? formatDate((fullOrder.metadata as any).estimatedDelivery) 
-                                    : 'Not available'}</dd>
-                                </div>
-                              </dl>
-                            </div>
-                          ) : null}
                         </div>
                       )}
                     </div>

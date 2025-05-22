@@ -20,7 +20,7 @@ const Header: React.FC = () => {
     removeItem,
   } = useCart();
 
-  const { query, setQuery, performSearch, loading } = useSearch();
+  const { query, setQuery, performSearch, loading, error, clearErrors } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
   const [userHasTyped, setUserHasTyped] = useState(false);
@@ -31,31 +31,32 @@ const Header: React.FC = () => {
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = currentPathname;
     
-    if (currentPathname === "/search" && 
-        (prevPathname !== "/search" || !userHasTyped)) {
+    if (currentPathname === "/search" && prevPathname !== "/search") {
       const params = new URLSearchParams(location.search);
       const queryParam = params.get("query");
       if (queryParam) {
         setQuery(queryParam);
       }
     }
-  }, [location.pathname, location.search, setQuery, userHasTyped]);
-
-  useEffect(() => {
-    if (location.pathname !== "/search") {
-      setUserHasTyped(false);
-    }
-  }, [location.pathname]);
+  }, [location.pathname, location.search, setQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserHasTyped(true);
-    setQuery(e.target.value);
+    const newQuery = e.target.value;
+    setQuery(newQuery);
+    
+    // Clear any existing error when user starts typing
+    if (error) {
+      clearErrors();
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      console.log('Search form submitted with query:', query);
       performSearch();
+    } else {
+      console.log('Empty search query, submission ignored');
     }
   };
 
@@ -63,7 +64,10 @@ const Header: React.FC = () => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (query.trim()) {
+        console.log('Search triggered by Enter key with query:', query);
         performSearch();
+      } else {
+        console.log('Empty search query, Enter key ignored');
       }
     }
   };
@@ -107,7 +111,6 @@ const Header: React.FC = () => {
   const handleLogout = () => {
     logout();
     closeDropdown();
-    navigate("/");
   };
 
   const navigateToAccount = () => {
@@ -148,20 +151,21 @@ const Header: React.FC = () => {
                   value={query}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
-                  onFocus={() => {
-                    if (location.pathname === "/search") {
-                      setUserHasTyped(true);
-                    }
-                  }}
                   placeholder="Search for products, brands and more..."
                   className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
+                  aria-label="Search products"
                 />
                 <button
                   type="submit"
-                  className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors"
+                  className="absolute right-0 top-0 h-full px-4 text-sky-600 rounded-r-lg bg-sky-100 hover:bg-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading || !query.trim()}
+                  aria-label={loading ? "Searching..." : "Search"}
                 >
-                  <Search size={18} />
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sky-600"></div>
+                  ) : (
+                    <Search size={18} />
+                  )}
                 </button>
               </div>
             </form>
@@ -292,11 +296,6 @@ const Header: React.FC = () => {
                   value={query}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
-                  onFocus={() => {
-                    if (location.pathname === "/search") {
-                      setUserHasTyped(true);
-                    }
-                  }}
                   placeholder="Search products..."
                   className="w-full px-4 py-2 pr-10 rounded-lg border border-sky-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-transparent"
                 />

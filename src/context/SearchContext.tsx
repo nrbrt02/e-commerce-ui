@@ -68,6 +68,7 @@ interface SearchContextType {
   performSearch: (searchQuery?: string) => Promise<void>;
   clearSearch: () => void;
   searchInCategory: (categoryId: number, searchQuery?: string) => Promise<void>;
+  clearErrors: () => void;
 }
 
 // Create context
@@ -82,26 +83,39 @@ export const SearchProvider: React.FC<{children: React.ReactNode}> = ({ children
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const navigate = useNavigate();
 
+  const clearErrors = useCallback(() => {
+    setError(null);
+  }, []);
+
   const performSearch = useCallback(async (searchQuery?: string) => {
     const finalQuery = searchQuery || query;
-    if (!finalQuery.trim()) return;
+    if (!finalQuery.trim()) {
+      console.log('Empty search query, skipping search');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log("Searching for:", finalQuery);
+      console.log("Initiating search for:", finalQuery);
       
-      // Using your actual API endpoint and query parameter name
+      // Using relative path for the API endpoint
       const response = await apiClient.get('/products/search', {
-        params: { query: finalQuery }
+        params: { 
+          query: finalQuery,
+          page: 1, // Always start from page 1 for new searches
+          limit: 20 // Set a reasonable limit
+        }
       });
       
       console.log("Search response:", response.data);
       
       // Check if the response was successful
       if (response.data.status === 'success') {
-        setResults(response.data.data.products || []);
+        const products = response.data.data.products || [];
+        console.log(`Found ${products.length} products`);
+        setResults(products);
         setPagination(response.data.pagination || null);
       } else {
         console.error('Search error:', response.data);
@@ -115,6 +129,7 @@ export const SearchProvider: React.FC<{children: React.ReactNode}> = ({ children
       const currentQuery = currentParams.get('query');
       
       if (window.location.pathname !== '/search' || currentQuery !== finalQuery) {
+        console.log('Navigating to search results page');
         navigate(`/search?query=${encodeURIComponent(finalQuery)}`);
       }
     } catch (err) {
@@ -188,7 +203,8 @@ export const SearchProvider: React.FC<{children: React.ReactNode}> = ({ children
         pagination,
         performSearch,
         clearSearch,
-        searchInCategory
+        searchInCategory,
+        clearErrors
       }}
     >
       {children}

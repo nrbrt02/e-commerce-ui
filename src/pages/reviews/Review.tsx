@@ -1,6 +1,6 @@
 // src/pages/Reviews.tsx
 import React, { useState, useEffect } from "react";
-// import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { 
   getCustomerReviews, 
   updateReview, 
@@ -18,7 +18,7 @@ import ReviewDetailsModal from "./ReviewDetailsModal";
 import ReviewEditModal from "./ReviewEditModal";
 
 const Reviews: React.FC = () => {
-//   const { user } = useAuth();
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +68,11 @@ const Reviews: React.FC = () => {
   }, [currentPage, resultsPerPage]);
 
   const handleDeleteReview = async (reviewId: string) => {
+    if (user?.role === 'supplier') {
+      showToast.error("Suppliers cannot delete reviews");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this review?")) {
       return;
     }
@@ -83,6 +88,11 @@ const Reviews: React.FC = () => {
   };
 
   const handleUpdateReview = async (updatedReview: Review) => {
+    if (user?.role === 'supplier') {
+      showToast.error("Suppliers cannot edit reviews");
+      return;
+    }
+
     try {
       const response = await updateReview(updatedReview.id, updatedReview);
       setReviews(reviews.map(review => 
@@ -97,6 +107,11 @@ const Reviews: React.FC = () => {
   };
 
   const handleVoteHelpful = async (reviewId: string) => {
+    if (user?.role === 'supplier') {
+      showToast.error("Suppliers cannot vote on reviews");
+      return;
+    }
+
     try {
       const response = await voteReviewHelpful(reviewId);
       setReviews(reviews.map(review => 

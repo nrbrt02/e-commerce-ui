@@ -25,12 +25,24 @@ export interface Review {
     name: string;
     slug: string;
     imageUrls: string[];
+    supplierId?: string;
   };
+}
+
+export interface ReviewFilters {
+  rating?: number;
+  isApproved?: boolean;
+  isVerifiedPurchase?: boolean;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  search?: string;
 }
 
 // Customer endpoints
 export const getCustomerReviews = async (page = 1, limit = 10) => {
-  const response = await apiClient.get(`${API_BASE_URL}/reviews/admin/all`, {
+  const response = await apiClient.get(`${API_BASE_URL}/reviews/customer/me`, {
     params: { page, limit }
   });
   return response.data;
@@ -52,7 +64,7 @@ export const deleteReview = async (id: string) => {
 };
 
 // Admin endpoints
-export const getAllReviews = async (page = 1, limit = 10, filters = {}) => {
+export const getAllReviews = async (page = 1, limit = 10, filters: ReviewFilters = {}) => {
   const response = await apiClient.get(`${API_BASE_URL}/reviews/admin/all`, {
     params: { page, limit, ...filters }
   });
@@ -69,8 +81,33 @@ export const toggleVerifiedPurchase = async (id: string) => {
   return response.data;
 };
 
+// Supplier endpoints
+export const getSupplierReviews = async (page = 1, limit = 10, filters: ReviewFilters = {}) => {
+  const response = await apiClient.get(`${API_BASE_URL}/reviews/supplier`, {
+    params: { page, limit, ...filters }
+  });
+  return response.data;
+};
+
 // Public endpoints
 export const getReviewById = async (id: string) => {
   const response = await apiClient.get(`${API_BASE_URL}/reviews/${id}`);
+  return response.data;
+};
+
+export const getProductReviews = async (productId: string, page = 1, limit = 10) => {
+  const response = await apiClient.get(`${API_BASE_URL}/reviews/product/${productId}`, {
+    params: { page, limit }
+  });
+  return response.data;
+};
+
+export const getProductReviewStats = async (productId: string) => {
+  const response = await apiClient.get(`${API_BASE_URL}/reviews/product/${productId}/stats`);
+  return response.data;
+};
+
+export const createReview = async (productId: string, reviewData: Partial<Review>) => {
+  const response = await apiClient.post(`${API_BASE_URL}/reviews/product/${productId}`, reviewData);
   return response.data;
 };

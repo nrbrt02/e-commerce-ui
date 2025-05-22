@@ -80,7 +80,7 @@ const AccountPage: React.FC = () => {
   const tabs = [
     { id: 'profile', name: 'Profile', icon: 'fa-user' },
     { id: 'orders', name: 'Orders', icon: 'fa-shopping-bag' },
-    { id: 'drafts', name: 'Draft Orders', icon: 'fa-file-alt' },
+    // { id: 'drafts', name: 'Draft Orders', icon: 'fa-file-alt' },
     { id: 'addresses', name: 'Addresses', icon: 'fa-map-marker-alt' },
     { id: 'settings', name: 'Settings', icon: 'fa-cog' },
   ];

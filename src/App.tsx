@@ -27,6 +27,7 @@ import AuthModal from "./components/auth/AuthModal";
 import { SearchProvider } from "./context/SearchContext";
 import SupplierProfile from "./pages/supplier/SupplierProfile";
 import SupplierStats from "./pages/supplier/SupplierStats";
+import SupplierReviews from './pages/reviews/SupplierReviews';
 
 const ProtectedRoute: React.FC<{
   element: React.ReactElement;
@@ -155,6 +156,15 @@ const App: React.FC = () => {
             <Route path="analytics" element={<Dashboard />} />
             <Route path="profile" element={<SupplierProfile />} />
             <Route path="stats" element={<SupplierStats />} />
+            <Route
+              path="reviews"
+              element={
+                <ProtectedRoute
+                  element={<SupplierReviews />}
+                  allowedRoles={['supplier']}
+                />
+              }
+            />
             {/* <Route 
               path="admin-settings" 
               element={
